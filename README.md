@@ -112,7 +112,7 @@ A PS/2 mouse on the mouse port of the board is connected to the emulated mouse b
 <a id="x1turbo-en"></a>
 ## ⚡ X1turbo Version (`X1turbo` folder)
 
-A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](../X1turbo/README.md).
+A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](X1turbo/README.md).
 
 ---
 
@@ -230,7 +230,7 @@ MSX・マーク III・PC-8801 版と同じ変換器・同じ通信仕様です�
 <a id="x1turbo-ja"></a>
 ## ⚡ X1turbo 版（`X1turbo` フォルダ）
 
-高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](../X1turbo/README.md) を参照してください。
+高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](X1turbo/README.md) を参照してください。
 
 ---
 

@@ -202,7 +202,9 @@ static void setGvAccess() {
     gvAccess = M.gvram + gvAccessPage * GVRAM_PAGE_SZ;
 }
 
+void x1IrqReset();
 void x1Reset() {
+    x1IrqReset();
     rom_selected = true;
     bank_reg = 0x10;
     initMemMap();
@@ -550,11 +552,24 @@ uint32_t x1_prof_render = 0;
 bool x1_render_skip = false;
 
 static uint8_t irq_vector = 0xFF;
-bool x1IrqPending() { return x1DmaIrqPending() || x1SubIrqPending(); }
-void x1IrqAck() {
-    if (!x1SioIrqPending() && x1DmaIrqPending()) irq_vector = x1DmaIrqAck();
-    else irq_vector = x1SubIrqAck();
+static uint16_t irq_ius;
+static uint16_t irqSources() {
+    uint16_t m = x1SubIrqSources();
+    if (x1DmaIrqPending()) m |= 0x0002;
+    const uint16_t top = (uint16_t)(irq_ius & (uint16_t)-irq_ius);
+    return top ? (uint16_t)(m & (top - 1)) : m;
 }
+bool x1IrqPending() { return irqSources() != 0; }
+void x1IrqAck() {
+    const uint16_t m = irqSources();
+    if (!m) { irq_vector = 0xFF; return; }
+    int src = 0;
+    while (!((m >> src) & 1)) src++;
+    irq_vector = (src == 1) ? x1DmaIrqAck() : x1SubIrqAckSource(src);
+    if (src != 2) irq_ius |= (uint16_t)(1 << src);
+}
+extern "C" void x1Reti(void) { irq_ius &= (uint16_t)(irq_ius - 1); }
+void x1IrqReset() { irq_ius = 0; }
 uint8_t x1IrqVector() { return irq_vector; }
 
 uint32_t x1_frame_count;

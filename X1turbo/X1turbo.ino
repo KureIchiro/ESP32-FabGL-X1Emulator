@@ -44,7 +44,7 @@
 #include "Z80.h"
 #include "x1.h"
 
-//#define USE_SERIAL_DEBUG
+#define USE_SERIAL_DEBUG
 
 #define X1_VGA_HZ 55
 #if X1_VGA_HZ == 55
@@ -62,7 +62,6 @@
 
 #define SD_SCLK 14
 #define SD_MISO 2
-//#define SD_MISO 35  // ORANGE ESPer
 #define SD_MOSI 12
 #define SD_CS 13
 
@@ -562,7 +561,7 @@ static const X1KeyMap keyMapTable[] = {
   { 0x11, false, X1K_GRAPH }, { 0x11, true, X1K_GRAPH }, { 0x64, false, X1K_GRAPH }, { 0x67, false, X1K_GRAPH },
 };
 static const int keyMapCount = sizeof(keyMapTable) / sizeof(keyMapTable[0]);
-static bool capsLock = false;
+static bool capsLock = false, kanaLock = false;
 
 static void writeBackD88(int driveNo);
 static void swapDisk(int d);
@@ -599,6 +598,19 @@ static int kbdNextScancode(fabgl::Keyboard *kb) {
   return kb->getNextScancode(0);
 }
 
+static uint8_t hostDown[64];
+static void hostKeySet(uint8_t ps2, bool ext, bool down) {
+  const int h = (ext ? 256 : 0) | ps2;
+  if (down) hostDown[h >> 3] |= (uint8_t)(1 << (h & 7));
+  else      hostDown[h >> 3] &= (uint8_t)~(1 << (h & 7));
+}
+static bool hostKeyAny(uint8_t key) {
+  for (int i = 0; i < keyMapCount; i++) {
+    const int h = (keyMapTable[i].ext ? 256 : 0) | keyMapTable[i].ps2;
+    if (keyMapTable[i].key == key && ((hostDown[h >> 3] >> (h & 7)) & 1)) return true;
+  }
+  return false;
+}
 void updateKeyboard() {
   static bool isBreak = false;
   static bool isE0 = false;
@@ -642,7 +654,10 @@ void updateKeyboard() {
         held = true;
         if (isPaused) {
           if (isShift) writeBackD88(d);
-          else swapDisk(d);
+          else {
+            swapDisk(d);
+            memset(hostDown, 0, sizeof(hostDown));
+          }
         }
       } else if (isBreak) held = false;
       isBreak = false; isE0 = false;
@@ -663,8 +678,21 @@ void updateKeyboard() {
         capsLock = !capsLock;
         if (capsLock) kbdMatrix[X1K_CAPS >> 3] &= (uint8_t)~(1 << (X1K_CAPS & 7));
         else          kbdMatrix[X1K_CAPS >> 3] |= (uint8_t)(1 << (X1K_CAPS & 7));
-        kbdSetLeds(capsLock, false);
+        kbdSetLeds(capsLock, kanaLock);
       }
+      isBreak = false; isE0 = false;
+      continue;
+    }
+
+    if (sc == 0x13 && !isE0) {
+      static bool kanaHeld = false;
+      if (!isBreak && !kanaHeld) {
+        kanaLock = !kanaLock;
+        if (kanaLock) kbdMatrix[X1K_KANA >> 3] &= (uint8_t)~(1 << (X1K_KANA & 7));
+        else          kbdMatrix[X1K_KANA >> 3] |= (uint8_t)(1 << (X1K_KANA & 7));
+        kbdSetLeds(capsLock, kanaLock);
+      }
+      kanaHeld = !isBreak;
       isBreak = false; isE0 = false;
       continue;
     }
@@ -677,7 +705,9 @@ void updateKeyboard() {
     for (int i = 0; i < keyMapCount; i++) {
       if (keyMapTable[i].ps2 == sc && keyMapTable[i].ext == isE0) {
         uint8_t k = keyMapTable[i].key, mask = (uint8_t)(1 << (k & 7));
+        hostKeySet(sc, isE0, !isBreak);
         if (isBreak) {
+          if (hostKeyAny(k)) break;
           if (pressedNow[k >> 3] & mask) deferRel[k >> 3] |= mask;
           else kbdMatrix[k >> 3] |= mask;
         } else {

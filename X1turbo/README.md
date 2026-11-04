@@ -86,8 +86,25 @@ The boot menu and the disk selectors can also be operated with the 1P controller
 - **While paused `[F10]` / `[F11]`** : Change the disk in FD0 / FD1 (`<NONE>` ejects it)
 - **While paused `[Shift] + [F10]` / `[Shift] + [F11]`** : Write FD0 / FD1 back to the SD card (only that disk inside a multi-disk file is overwritten; raw images are written back as raw)
 - **`[F8]`** : PSG→SCC on / off (adds SCC preset waveforms played with the PSG's pitch and volume, same as the MSX2 emulator)
-- Keys (Japanese 106 keyboard): F1–F5 = X1 function keys, BREAK = End, HOME / INS / DEL = Home / Insert / Delete, GRAPH = Alt, Muhenkan or Henkan. CAPS is a lock key (the Caps Lock LED follows it). Kana input is not supported.
-- The cursor keys also act as joystick 1 (for games that read only the joystick for movement).
+
+### Keys that work differently from their keytop (Japanese 106 keyboard)
+
+| PC keyboard | X1 |
+| :--- | :--- |
+| End | BREAK (alone: 13h; with Shift: 03h) |
+| BackSpace / Delete | DEL (with Shift: INS) |
+| Insert | INS |
+| Home | HOME (with Shift: CLR) |
+| Alt / Muhenkan / Henkan | GRAPH |
+| CapsLock | CAPS (lock key; the Caps Lock LED shows it) |
+| Katakana/Hiragana | KANA (lock key; the Scroll Lock LED shows it). The kana layout is the same as the kana printed on the 106 keyboard. |
+| Ro (`\`) | `_` with Shift (nothing without Shift); ロ in kana mode |
+| Numeric keypad Enter | RETURN |
+| Cursor keys | Cursor keys, and also the joystick 1 directions (for games that read only the joystick for movement) |
+| F1–F5 | X1 F1–F5 (with Shift: F6–F10, as on the X1) |
+| F6–F12 | Not sent to the X1. F8 and F10–F12 are emulator operations (above); F6, F7 and F9 do nothing. |
+
+The numeric keypad `=` and `,` keys of the X1 are not on the 106 keyboard.
 
 ---
 
@@ -202,8 +219,25 @@ ROM のファイルは `/X1` の直下に置いてもかまいません。
 - **一時停止中に `[F10]` / `[F11]`** : FD0 / FD1 のディスクを入れ替え（`<NONE>` で取り出し）
 - **一時停止中に `[Shift] + [F10]` / `[Shift] + [F11]`** : FD0 / FD1 の内容を SD へ書き戻し（複数枚入ったファイルは、そのディスクの部分だけ上書き。ベタのイメージはベタのまま書き戻す）
 - **`[F8]`** : PSG→SCC の入/切（PSG の音程・音量で SCC のプリセット波形を重ねて鳴らす。MSX2 版と同じ）
-- キー（日本語 106 キーボード）: F1〜F5 = X1 のファンクションキー、BREAK = End、HOME / INS / DEL = Home / Insert / Delete、GRAPH = Alt・無変換・変換。CAPS はロック式です（Caps Lock のランプが連動）。カナ入力は対応していません。
-- カーソルキーはジョイスティック 1 の方向にもなります（移動をジョイスティックでしか読まないソフト用）。
+
+### 印字と機能が違うキー（日本語 106 キーボード）
+
+| PC のキーボード | X1 |
+| :--- | :--- |
+| End | BREAK（BREAK だけでは 13h、Shift + BREAK で 03h） |
+| BackSpace / Delete | DEL（Shift で INS） |
+| Insert | INS |
+| Home | HOME（Shift で CLR） |
+| Alt・無変換・変換 | GRAPH |
+| CapsLock | CAPS（ロック式。Caps Lock のランプが連動） |
+| カタカナひらがな | カナ（ロック式。Scroll Lock のランプが連動）。カナの配列は 106 キーボードのかなの印字と同じです。 |
+| ろ（`\`） | Shift で `_`（Shift なしでは何も入りません）。カナのときは ロ |
+| テンキーの Enter | RETURN |
+| カーソルキー | カーソルキー。ジョイスティック 1 の方向にもなります（移動をジョイスティックでしか読まないソフト用） |
+| F1〜F5 | X1 の F1〜F5（実機と同じく Shift で F6〜F10） |
+| F6〜F12 | X1 には送りません。F8・F10〜F12 はエミュレータの操作（上の一覧）、F6・F7・F9 は何もしません。 |
+
+X1 のテンキーの `=` と `,` は 106 キーボードにありません。
 
 ---
 

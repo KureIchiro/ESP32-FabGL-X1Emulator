@@ -89,8 +89,8 @@ void    x1PpiWrite(uint16_t port, uint8_t val);
 uint8_t x1CtcRead(uint16_t port);
 void    x1CtcWrite(uint16_t port, uint8_t val);
 void    x1SubScanlineTick();
-bool    x1SubIrqPending();
-uint8_t x1SubIrqAck();
+uint16_t x1SubIrqSources();
+uint8_t  x1SubIrqAckSource(int src);
 void    x1KeyPollTick();
 void    x1RtcTick();
 

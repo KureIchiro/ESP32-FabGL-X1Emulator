@@ -72,6 +72,7 @@ INLINE byte OpZ80(zword A) { return(RAM[A>>13][A&0x1FFF]); }
 #define WrZ80 WRZ80
 #define FAST_RDOP
 extern byte *x1_rd_map[], *x1_wr_map[];
+void x1Reti(void);
 Z80_FORCEINLINE byte RdZ80(zword A)        { return(x1_rd_map[A>>12][A&0x0FFF]); }
 Z80_FORCEINLINE void WrZ80(zword A,byte V) { x1_wr_map[A>>12][A&0x0FFF]=V; }
 Z80_FORCEINLINE byte OpZ80(zword A)        { return(x1_rd_map[A>>12][A&0x0FFF]); }

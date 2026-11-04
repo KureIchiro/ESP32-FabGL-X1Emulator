@@ -43,7 +43,7 @@ The Z80 core follows Marat Fayzullin's **fMSX License**; FabGL follows its own l
 - **Board Manager**: ESP32 by Espressif Systems (**v2.0.5 Recommended**)
 - **Library**: FabGL v1.0.9
 - **Board**: `ESP32 Dev Module` (TTGO VGA32)
-- **PSRAM**: `"Enabled"` (required). Older ESP32 chips (revision 0–2, found on many TTGO VGA32 boards) have a PSRAM bug (Espressif errata CPU-3.9), and `"Enabled"` makes the compiler add a workaround for it. On chip revision 3 or later you may choose `"Disabled"` instead: the sketch turns PSRAM on by itself and runs about 30% faster without the workaround. On an older chip a `"Disabled"` build stops at startup with a message, because it could occasionally corrupt memory. The upload log shows the revision (e.g. "Chip is ESP32-D0WDQ6 (revision 1)").
+- **PSRAM**: `"Enabled"` (required). Older ESP32 chips (revision 0–2, found on many TTGO VGA32 boards) have a PSRAM bug (Espressif errata CPU-3.9), and `"Enabled"` makes the compiler add a workaround for it. On chip revision 3 or later you may choose `"Disabled"` instead: the sketch turns PSRAM on by itself and runs about 20% faster without the workaround. On an older chip a `"Disabled"` build stops at startup with a message, because it could occasionally corrupt memory. The upload log shows the revision (e.g. "Chip is ESP32-D0WDQ6 (revision 1)").
 
 ---
 
@@ -81,8 +81,25 @@ The boot menu and the disk selectors can also be operated with the 1P controller
 - **While paused `[F10]` / `[F11]`** : Change the disk in FD0 / FD1 (`<NONE>` ejects it)
 - **While paused `[Shift] + [F10]` / `[Shift] + [F11]`** : Write FD0 / FD1 back to the SD card (only that disk inside a multi-disk file is overwritten; raw images are written back as raw)
 - **`[F8]`** : PSG→SCC on / off (adds SCC preset waveforms played with the PSG's pitch and volume, same as the MSX2 emulator)
-- Keys (Japanese 106 keyboard): F1–F5 = X1 function keys, BREAK = End, HOME / INS / DEL = Home / Insert / Delete, GRAPH = Alt, Muhenkan or Henkan. CAPS is a lock key. Kana input is not supported.
-- The cursor keys also act as joystick 1 (for games that read only the joystick for movement).
+
+### Keys that work differently from their keytop (Japanese 106 keyboard)
+
+| PC keyboard | X1 |
+| :--- | :--- |
+| End | BREAK (alone: 13h; with Shift: 03h) |
+| BackSpace / Delete | DEL (with Shift: INS) |
+| Insert | INS |
+| Home | HOME (with Shift: CLR) |
+| Alt / Muhenkan / Henkan | GRAPH |
+| CapsLock | CAPS (lock key; the Caps Lock LED shows it) |
+| Katakana/Hiragana | KANA (lock key; the Scroll Lock LED shows it). The kana layout is the same as the kana printed on the 106 keyboard. |
+| Ro (`\`) | `_` with Shift (nothing without Shift); ロ in kana mode |
+| Numeric keypad Enter | RETURN |
+| Cursor keys | Cursor keys, and also the joystick 1 directions (for games that read only the joystick for movement) |
+| F1–F5 | X1 F1–F5 (with Shift: F6–F10, as on the X1) |
+| F6–F12 | Not sent to the X1. F8 and F10–F12 are emulator operations (above); F6, F7 and F9 do nothing. |
+
+The numeric keypad `=` and `,` keys of the X1 are not on the 106 keyboard.
 
 ---
 
@@ -112,7 +129,7 @@ A PS/2 mouse on the mouse port of the board is connected to the emulated mouse b
 <a id="x1turbo-en"></a>
 ## ⚡ X1turbo Version (`X1turbo` folder)
 
-A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](X1turbo/README.md).
+A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](../X1turbo/README.md).
 
 ---
 
@@ -161,7 +178,7 @@ Z80 コアは Marat Fayzullin 氏の **fMSX License**、FabGL はそのライセ
 - **ボードマネージャ**: ESP32 by Espressif Systems（**v2.0.5 推奨**）
 - **ライブラリ**: FabGL v1.0.9
 - **ボード**: `ESP32 Dev Module`（TTGO VGA32）
-- **PSRAM**: `"Enabled"`（必須）。古い ESP32（リビジョン 0〜2。TTGO VGA32 にも多い）には PSRAM の不具合（Espressif errata CPU-3.9）があり、`"Enabled"` にするとコンパイラがその回避策を入れます。チップがリビジョン 3 以降なら `"Disabled"` でもよく、スケッチが起動時に PSRAM を有効にし、回避策が入らないぶん約 3 割速くなります。古いチップで `"Disabled"` にしたものは、まれにメモリが壊れるため、起動時に理由を表示して止まります。リビジョンは書き込みのときのログ（「Chip is ESP32-D0WDQ6 (revision 1)」など）で分かります。
+- **PSRAM**: `"Enabled"`（必須）。古い ESP32（リビジョン 0〜2。TTGO VGA32 にも多い）には PSRAM の不具合（Espressif errata CPU-3.9）があり、`"Enabled"` にするとコンパイラがその回避策を入れます。チップがリビジョン 3 以降なら `"Disabled"` でもよく、スケッチが起動時に PSRAM を有効にし、回避策が入らないぶん約 2 割速くなります。古いチップで `"Disabled"` にしたものは、まれにメモリが壊れるため、起動時に理由を表示して止まります。リビジョンは書き込みのときのログ（「Chip is ESP32-D0WDQ6 (revision 1)」など）で分かります。
 
 ---
 
@@ -199,8 +216,25 @@ Z80 コアは Marat Fayzullin 氏の **fMSX License**、FabGL はそのライセ
 - **一時停止中に `[F10]` / `[F11]`** : FD0 / FD1 のディスクを入れ替え（`<NONE>` で取り出し）
 - **一時停止中に `[Shift] + [F10]` / `[Shift] + [F11]`** : FD0 / FD1 の内容を SD へ書き戻し（複数枚入ったファイルは、そのディスクの部分だけ上書き。ベタのイメージはベタのまま書き戻す）
 - **`[F8]`** : PSG→SCC の入/切（PSG の音程・音量で SCC のプリセット波形を重ねて鳴らす。MSX2 版と同じ）
-- キー（日本語 106 キーボード）: F1〜F5 = X1 のファンクションキー、BREAK = End、HOME / INS / DEL = Home / Insert / Delete、GRAPH = Alt・無変換・変換。CAPS はロック式です。カナ入力は対応していません。
-- カーソルキーはジョイスティック 1 の方向にもなります（移動をジョイスティックでしか読まないソフト用）。
+
+### 印字と機能が違うキー（日本語 106 キーボード）
+
+| PC のキーボード | X1 |
+| :--- | :--- |
+| End | BREAK（BREAK だけでは 13h、Shift + BREAK で 03h） |
+| BackSpace / Delete | DEL（Shift で INS） |
+| Insert | INS |
+| Home | HOME（Shift で CLR） |
+| Alt・無変換・変換 | GRAPH |
+| CapsLock | CAPS（ロック式。Caps Lock のランプが連動） |
+| カタカナひらがな | カナ（ロック式。Scroll Lock のランプが連動）。カナの配列は 106 キーボードのかなの印字と同じです。 |
+| ろ（`\`） | Shift で `_`（Shift なしでは何も入りません）。カナのときは ロ |
+| テンキーの Enter | RETURN |
+| カーソルキー | カーソルキー。ジョイスティック 1 の方向にもなります（移動をジョイスティックでしか読まないソフト用） |
+| F1〜F5 | X1 の F1〜F5（実機と同じく Shift で F6〜F10） |
+| F6〜F12 | X1 には送りません。F8・F10〜F12 はエミュレータの操作（上の一覧）、F6・F7・F9 は何もしません。 |
+
+X1 のテンキーの `=` と `,` は 106 キーボードにありません。
 
 ---
 
@@ -230,7 +264,7 @@ MSX・マーク III・PC-8801 版と同じ変換器・同じ通信仕様です�
 <a id="x1turbo-ja"></a>
 ## ⚡ X1turbo 版（`X1turbo` フォルダ）
 
-高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](X1turbo/README.md) を参照してください。
+高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](../X1turbo/README.md) を参照してください。
 
 ---
 

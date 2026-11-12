@@ -240,10 +240,6 @@ void x1Reset() {
     x1DmaReset();
 }
 
-#ifdef X1_RAM_STATS
-uint32_t x1_ram_hits[X1_RAM_PAGES];
-#endif
-
 extern "C" uint8_t IRAM_ATTR x1ReadByte(uint16_t addr) {
     return x1_rd_map[addr >> 12][addr & 0x0FFF];
 }
@@ -412,6 +408,8 @@ extern "C" uint8_t IRAM_ATTR x1ReadIO(uint16_t port) {
             return 0xFF;
         case 0x2000: case 0x2100: case 0x2200: case 0x2300:
         case 0x2400: case 0x2500: case 0x2600: case 0x2700:
+        case 0x2800: case 0x2900: case 0x2A00: case 0x2B00:
+        case 0x2C00: case 0x2D00: case 0x2E00: case 0x2F00:
             return M.avram[port & 0x7FF];
         case 0x3000: case 0x3100: case 0x3200: case 0x3300:
         case 0x3400: case 0x3500: case 0x3600: case 0x3700:
@@ -422,6 +420,17 @@ extern "C" uint8_t IRAM_ATTR x1ReadIO(uint16_t port) {
         default:
             return 0xFF;
     }
+}
+
+extern "C" int IRAM_ATTR x1IoPeek(uint16_t port, uint8_t *v) {
+    switch (port & 0xFF00) {
+#if X1_OPM_BOARD
+        case 0x0700: if (port <= 0x0701) { *v = opmTimer.status; return 1; } return 0;
+#endif
+        case 0x0B00: *v = bank_reg; return 1;
+        case 0x1A00: if ((port & 3) != 3) { *v = x1PpiRead(port); return 1; } return 0;
+    }
+    return 0;
 }
 
 extern "C" void IRAM_ATTR x1WriteIO(uint16_t port, uint8_t val) {
@@ -504,6 +513,8 @@ extern "C" void IRAM_ATTR x1WriteIO(uint16_t port, uint8_t val) {
             return;
         case 0x2000: case 0x2100: case 0x2200: case 0x2300:
         case 0x2400: case 0x2500: case 0x2600: case 0x2700:
+        case 0x2800: case 0x2900: case 0x2A00: case 0x2B00:
+        case 0x2C00: case 0x2D00: case 0x2E00: case 0x2F00:
             M.avram[port & 0x7FF] = val; x1MarkTx(port); return;
         case 0x3000: case 0x3100: case 0x3200: case 0x3300:
         case 0x3400: case 0x3500: case 0x3600: case 0x3700:
@@ -536,19 +547,10 @@ void x1ScanlineTick(int line) {
     }
 
     if (line < x1_disp_lines && !x1_render_skip) {
-#ifdef X1_PROFILE
-        uint32_t c0 = x1Ccount();
         x1RenderLine(line);
-        x1_prof_render += x1Ccount() - c0;
-#else
-        x1RenderLine(line);
-#endif
     }
 }
 
-#ifdef X1_PROFILE
-uint32_t x1_prof_render = 0;
-#endif
 bool x1_render_skip = false;
 
 static uint8_t irq_vector = 0xFF;

@@ -75,7 +75,7 @@ static void requestIntr(int level) {
 }
 
 static uint8_t rd(uint16_t a, bool io) { return io ? x1ReadIO(a) : x1ReadByte(a); }
-static void wr(uint16_t a, bool io, uint8_t v) { if (io) x1WriteIO(a, v); else x1WriteByte(a, v); }
+static void wr(uint16_t a, bool io, uint8_t v) { if (io) x1WriteIO(a, v); else { x1WriteByte(a, v); x1_ext_wr++; } }
 static inline uint16_t step(uint16_t a, uint8_t wr12) { return (wr12 & 0x20) ? a : (wr12 & 0x10) ? (uint16_t)(a + 1) : (uint16_t)(a - 1); }
 
 static void doDma() {

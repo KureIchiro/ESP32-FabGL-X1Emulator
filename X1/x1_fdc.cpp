@@ -388,9 +388,8 @@ static void executeCommand(uint8_t cmd) {
     fdc_write_idle = 0;
 
     if ((cmd & 0xF0) == 0xD0) {
-        if (mode == M_IDLE) fdc.Status = 0;
+        if (mode == M_IDLE) { fdc.Status = 0; typeI = true; }
         mode = M_IDLE;
-        typeI = true;
         if (cmd & 0x08) fdc_intrq = intrq_hold = true;
         else if (cmd & 0x04) fdc_intrq = true;
         return;

@@ -99,8 +99,6 @@ uint32_t x1_vram_gen = 0;
 uint32_t x1_gv_gen[2][512];
 uint32_t x1_tx_gen[128];
 uint32_t x1_pcg_gen = 0;
-uint32_t x1_lines_drawn = 0;
-uint32_t x1_lines_txtsame = 0;
 static uint32_t videoGen = 1;
 static uint32_t lineCg[X1_SCREEN_H], lineTx[X1_SCREEN_H], lineTxt[X1_SCREEN_H];
 static uint8_t  lineFlags[X1_SCREEN_H];
@@ -388,7 +386,6 @@ void IRAM_ATTR x1RenderLine(int y) {
         uint32_t bk = videoGen * 0x9E3779B1u ^ 0x5BD1E995u;
         if (lineCg[slot] == bk && lineTx[slot] == 0 && lineFlags[slot] == 0x80) return;
         memset(o, 0, X1_ROW_BYTES);
-        x1_lines_drawn++;
         lineCg[slot] = bk; lineTx[slot] = 0; lineFlags[slot] = 0x80;
         return;
     }
@@ -411,9 +408,6 @@ void IRAM_ATTR x1RenderLine(int y) {
     if (cgKey == lineCg[slot] && tx == lineTx[slot]) return;
     uint8_t newFl = 0;
 
-#ifdef X1_PROFILE
-    uint32_t pc0 = x1Ccount();
-#endif
     const bool rowDblH  = (M.avram[start0] & 0x40) != 0;
     if (rowDblH && row > 0) newFl |= 4;
     const bool blank8   = !hireso && ty >= 8 && !(x1_mode1_eff & 1);
@@ -473,16 +467,10 @@ void IRAM_ATTR x1RenderLine(int y) {
         for (int cx = 0; cx < x_chars; cx++) if (txt[cx]) txtHash = mixWord(txtHash, txt[cx] ^ (uint32_t)(cx + 1) * 0x9E3779B1u);
         txtHash |= 1;
     }
-#ifdef X1_PROFILE
-    uint32_t pc1 = x1Ccount();
-    x1_prof_txt += pc1 - pc0;
-#endif
     if (txtHash && txtHash == lineTxt[slot]) {
         lineTx[slot] = txNew; lineFlags[slot] = newFl;
-        x1_lines_txtsame++;
         return;
     }
-    x1_lines_drawn++;
 
     uint8_t gl[240];
     uint8_t *const lineB = gl, *const lineR = gl + 80, *const lineG = gl + 160;
@@ -506,9 +494,6 @@ void IRAM_ATTR x1RenderLine(int y) {
             }
         }
     }
-#ifdef X1_PROFILE
-    uint32_t pc2 = x1Ccount();
-#endif
 
     const uint8_t pri = priority_reg;
     const bool priGeneric = pri != 0 && (pri & 0xFE) != 0xFE;
@@ -525,35 +510,4 @@ void IRAM_ATTR x1RenderLine(int y) {
         for (int i = used; i < X1_ROW_BYTES / 4; i++) o[i] = 0;
     }
     lineCg[slot] = cgKey; lineTx[slot] = txNew; lineTxt[slot] = txtHash; lineFlags[slot] = newFl;
-#ifdef X1_PROFILE
-    uint32_t pc3 = x1Ccount();
-    x1_prof_rd  += pc2 - pc1;
-    x1_prof_bmp += pc3 - pc2;
-#endif
 }
-
-#ifdef X1_PROFILE
-uint32_t x1_prof_rd = 0, x1_prof_bmp = 0, x1_prof_txt = 0;
-
-void x1MemBench() {
-    if (!tablesReady || !x1_vp_rows) return;
-    uint8_t keep[18];
-    memcpy(keep, crtc_regs, sizeof(keep));
-    bool keepHres = hres_mode, keepHireso = x1_hireso;
-    uint8_t keepMode1 = x1_mode1_eff;
-    crtc_regs[1] = 80; crtc_regs[6] = 25; crtc_regs[9] = 15; crtc_regs[12] = crtc_regs[13] = 0;
-    hres_mode = true; x1_mode1_eff = 0x05; x1_hireso = true;
-    mapRows(true);
-    uint32_t c0 = x1Ccount();
-    for (int k = 0; k < 5; k++) {
-        videoGen++;
-        for (int y = 0; y < 400; y++) x1RenderLine(y);
-    }
-    uint32_t t400 = (x1Ccount() - c0) / 5;
-    memcpy(crtc_regs, keep, sizeof(keep));
-    hres_mode = keepHres; x1_hireso = keepHireso; x1_mode1_eff = keepMode1;
-    mapRows(x1_hireso);
-    Serial.printf("BENCH render 640x400 all lines: %u us/frame\n", (unsigned)(t400 / 240));
-    x1_prof_rd = x1_prof_bmp = x1_prof_txt = 0;
-}
-#endif

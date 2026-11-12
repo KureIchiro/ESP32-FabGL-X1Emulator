@@ -26,6 +26,12 @@
 #include <stdlib.h>
 #include <SPI.h>
 #include <SD.h>
+#if __has_include("emu_switch.h")
+#include "emu_switch.h"
+#define EMU_SWITCH 1
+#else
+#define EMU_SWITCH 0
+#endif
 #include <fabgl.h>
 #include <vector>
 #include <algorithm>
@@ -44,7 +50,7 @@
 #include "Z80.h"
 #include "x1.h"
 
-#define USE_SERIAL_DEBUG
+//#define USE_SERIAL_DEBUG
 
 #define X1_VGA_HZ 55
 #if X1_VGA_HZ == 55
@@ -60,10 +66,23 @@
 #endif
 #define X1_FRAME_US (800 * X1_VGA_VTOTAL * 1000 / 25175)
 
+// TTGO VGA32
 #define SD_SCLK 14
 #define SD_MISO 2
 #define SD_MOSI 12
-#define SD_CS 13
+#define SD_CS   13
+
+// ORANGE ESPer
+// #define SD_SCLK 14
+// #define SD_MISO 35
+// #define SD_MOSI 12
+// #define SD_CS   13
+
+// Switch Science FabGL 
+// #define SD_SCLK 14
+// #define SD_MISO 35
+// #define SD_MOSI 2
+// #define SD_CS   13
 
 struct D88Image { uint32_t ofs, size; char name[18]; };
 static const int D88_MAX_IMAGES = 16;
@@ -79,14 +98,8 @@ extern "C" {
 
 Z80 cpu;
 
-#ifdef X1_RAM_STATS
-extern uint32_t x1_ram_hits[X1_RAM_PAGES];
-#define X1_HIT(a) (x1_ram_hits[(a) >> X1_RAM_PAGE_SHIFT]++)
-#else
-#define X1_HIT(a) ((void)0)
-#endif
-byte IRAM_ATTR RdZ80(zword Addr) { X1_HIT(Addr); return x1_rd_map[Addr >> 12][Addr & 0x0FFF]; }
-void IRAM_ATTR WrZ80(zword Addr, byte Value) { X1_HIT(Addr); x1_wr_map[Addr >> 12][Addr & 0x0FFF] = Value; }
+byte IRAM_ATTR RdZ80(zword Addr) { return x1_rd_map[Addr >> 12][Addr & 0x0FFF]; }
+void IRAM_ATTR WrZ80(zword Addr, byte Value) { x1_wr_map[Addr >> 12][Addr & 0x0FFF] = Value; }
 byte IRAM_ATTR InZ80(zword Port) { return x1ReadIO(Port); }
 void IRAM_ATTR OutZ80(zword Port, byte Value) {
   x1WriteIO(Port, Value);
@@ -1037,7 +1050,13 @@ static bool chooseDisk(int d, String &file, int &image, const String &otherFile,
   return true;
 }
 
-static char menuShown[9][100];
+#if EMU_SWITCH
+static const int MENU_NEXT = 6, MENU_RUN = 7;
+static int emuNext = -1;
+#else
+static const int MENU_RUN = 6;
+#endif
+static char menuShown[MENU_RUN + 3][100];
 static bool menuValid = false;
 static void bootMenuInvalidate() { menuValid = false; }
 
@@ -1053,7 +1072,7 @@ static void bootMenuDraw(int cursor, const char *msg, int capture = -1) {
     memset(menuShown, 0, sizeof(menuShown));
     menuValid = true;
   }
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i <= MENU_RUN; i++) {
     char line[96];
     switch (i) {
       case 0: case 1: {
@@ -1068,6 +1087,9 @@ static void bootMenuDraw(int cursor, const char *msg, int capture = -1) {
         if (i == capture) snprintf(line, sizeof(line), "Joy B%d  : PRESS A KEY...", i - 2);
         else snprintf(line, sizeof(line), "Joy B%d  : %s", i - 2, x1KeyName(joyButtonKey[i - 3]));
         break;
+#if EMU_SWITCH
+      case MENU_NEXT: { char m[48]; emuNextLabel(emuNext, "X1TURBO", m, sizeof(m)); snprintf(line, sizeof(line), "Next    : %s", m); break; }
+#endif
       default: snprintf(line, sizeof(line), "Run"); break;
     }
     bool sel = (i == cursor);
@@ -1085,8 +1107,8 @@ static void bootMenuDraw(int cursor, const char *msg, int capture = -1) {
                                   : "UP/DOWN: SELECT   ENTER: CHANGE / RUN   (JOYTOKEY: NUMPAD 1-9)";
   const char *texts[2] = { help, msg ? msg : "" };
   for (int k = 0; k < 2; k++) {
-    if (strcmp(texts[k], menuShown[7 + k]) == 0) continue;
-    snprintf(menuShown[7 + k], sizeof(menuShown[0]), "%s", texts[k]);
+    if (strcmp(texts[k], menuShown[MENU_RUN + 1 + k]) == 0) continue;
+    snprintf(menuShown[MENU_RUN + 1 + k], sizeof(menuShown[0]), "%s", texts[k]);
     int y = k ? 400 - 40 : 400 - 68;
     canvas->setBrushColor(fabgl::Color::Blue);
     canvas->fillRectangle(X0 - 4, y - 2, 639, y + 17);
@@ -1097,10 +1119,13 @@ static void bootMenuDraw(int cursor, const char *msg, int capture = -1) {
 
 static void x1BootMenu() {
   auto kb = PS2Controller.keyboard();
-  const int NITEMS = 7;
+  const int NITEMS = MENU_RUN + 1;
   int pos = 0, capture = -1;
   const char *msg = nullptr;
   bool isBreak = false, isE0 = false, redraw = true, joyChanged = false;
+#if EMU_SWITCH
+  emuNext = emuNextInit("X1TURBO");
+#endif
   bootMenuInvalidate();
   for (;;) {
     if (redraw) { bootMenuDraw(pos, msg, capture); redraw = false; }
@@ -1124,6 +1149,9 @@ static void x1BootMenu() {
         else if (sc == 0x72 && isE0) { pos = (pos + 1) % NITEMS; redraw = true; }
         else if (sc == 0x5A && pos >= 3 && pos <= 5) { capture = pos; redraw = true; }
         else if (sc == 0x5A && pos == 2) { joyToKeyOn = !joyToKeyOn; joyChanged = true; redraw = true; }
+#if EMU_SWITCH
+        else if (sc == 0x5A && pos == MENU_NEXT) { emuNext = emuNextCycle(emuNext, "X1TURBO"); redraw = true; }
+#endif
         else if (sc == 0x5A) {
           msg = nullptr;
           if (pos == 0 || pos == 1) {
@@ -1209,18 +1237,6 @@ static void vgaWaitFrame(int64_t frameStart) {
   }
 }
 
-#ifdef USE_SERIAL_DEBUG
-#include "esp_freertos_hooks.h"
-static volatile uint32_t core1IdleCyc = 0;
-static uint32_t core1IdleLast = 0;
-static bool IRAM_ATTR core1IdleHook() {
-  uint32_t now = xthal_get_ccount(), d = now - core1IdleLast;
-  core1IdleLast = now;
-  if (d < 1200) core1IdleCyc += d;
-  return false;
-}
-#endif
-
 void cpuTask(void *pvParameters) {
   const int64_t frameTimeUs = X1_FRAME_US;
   int64_t nextFrameTime = esp_timer_get_time();
@@ -1230,20 +1246,8 @@ void cpuTask(void *pvParameters) {
   bool noWait = false, prevNoWait = false;
 
 #ifdef USE_SERIAL_DEBUG
-  int64_t dbgMin = INT64_MAX, dbgMax = 0, dbgSum = 0;
-  int dbgOverBudget = 0;
-  int dbgFrameCnt = 0;
-  int64_t dbgWinStart = 0, dbgIdle = 0, dbgRendMax = 0, dbgRestMax = 0;
-  int dbgHist[4] = { 0, 0, 0, 0 };
-  int dbgSkipFix = 0, dbgCpuBound = 0, dbgFull = 0, dbgRendSkipped = 0;
-  uint32_t dbgLinesMax = 0;
-#endif
-#ifdef X1_PROFILE
-  uint64_t profZ80 = 0, profTick = 0, profEnd = 0;
-#ifdef USE_SERIAL_DEBUG
-  x1MemBench();
-  nextFrameTime = esp_timer_get_time();
-#endif
+  int64_t dbgMin = INT64_MAX, dbgMax = 0, dbgSum = 0, dbgWinStart = 0, dbgIdle = 0;
+  int dbgOverBudget = 0, dbgFrameCnt = 0;
 #endif
 
   while (1) {
@@ -1264,9 +1268,6 @@ void cpuTask(void *pvParameters) {
 #ifdef USE_SERIAL_DEBUG
     int64_t frameStart = esp_timer_get_time();
     if (dbgFrameCnt == 0) dbgWinStart = frameStart;
-#ifdef X1_PROFILE
-    const uint32_t dbgRend0 = x1_prof_render, dbgLines0 = x1_lines_drawn;
-#endif
 #endif
 
     updateJoystick(prevNoWait);
@@ -1279,22 +1280,10 @@ void cpuTask(void *pvParameters) {
     nextFrameTime += frameTimeUs;
     for (int i = 0; i < lines; i++) {
       int run = cyc - cpuDebt - x1DmaTakeCycles();
-#ifdef X1_PROFILE
-      uint32_t pc0 = x1Ccount();
-      if (run > 0) cpuDebt = -ExecZ80(&cpu, run); else cpuDebt = -run;
-      uint32_t pc1 = x1Ccount();
-      x1ScanlineTick(i);
-#if X1_OPM_BOARD
-      opmEmuClock += cyc;
-#endif
-      profZ80  += pc1 - pc0;
-      profTick += x1Ccount() - pc1;
-#else
       if (run > 0) cpuDebt = -ExecZ80(&cpu, run); else cpuDebt = -run;
       x1ScanlineTick(i);
 #if X1_OPM_BOARD
       opmEmuClock += cyc;
-#endif
 #endif
 
       if (i == x1_disp_lines) {
@@ -1305,16 +1294,10 @@ void cpuTask(void *pvParameters) {
         IntZ80(&cpu, x1IrqVector());
       }
     }
-#ifdef X1_PROFILE
-    uint32_t pe0 = x1Ccount();
-#endif
     x1FrameTick();
 
     usAccum += (uint32_t)lines * cyc / 4;
     while (usAccum >= 1000) { x1FdcTick1ms(); usAccum -= 1000; }
-#ifdef X1_PROFILE
-    profEnd += x1Ccount() - pe0;
-#endif
 
 #ifdef USE_SERIAL_DEBUG
     int64_t elapsed = esp_timer_get_time() - frameStart;
@@ -1322,64 +1305,14 @@ void cpuTask(void *pvParameters) {
     if (elapsed > dbgMax) dbgMax = elapsed;
     dbgSum += elapsed;
     if (elapsed > frameTimeUs) dbgOverBudget++;
-    if (x1_render_skip) dbgRendSkipped++;
-    dbgHist[elapsed <= frameTimeUs ? 0 : elapsed <= frameTimeUs * 3 / 2 ? 1 : elapsed <= frameTimeUs * 2 ? 2 : 3]++;
-#ifdef X1_PROFILE
-    {
-      const int64_t rendUs = (int64_t)((uint32_t)(x1_prof_render - dbgRend0) / 240u);
-      const int64_t restUs = elapsed - rendUs;
-      if (rendUs > dbgRendMax) dbgRendMax = rendUs;
-      if (restUs > dbgRestMax) dbgRestMax = restUs;
-      if (elapsed > frameTimeUs) { if (restUs <= frameTimeUs) dbgSkipFix++; else dbgCpuBound++; }
-      const uint32_t ln = x1_lines_drawn - dbgLines0;
-      if (ln > dbgLinesMax) dbgLinesMax = ln;
-      if (ln >= (uint32_t)x1_disp_lines) dbgFull++;
-    }
-#endif
     if (++dbgFrameCnt >= 300) {
-      {
-        const int64_t wall = esp_timer_get_time() - dbgWinStart;
-        const uint32_t c1 = core1IdleCyc; core1IdleCyc = 0;
-        Serial.printf("SPEED: %d%% of real (%d frames in %lld ms) | frame <=1x:%d <=1.5x:%d <=2x:%d >2x:%d | max render=%lldus rest=%lldus | over: renderSkipFixes=%d cpuBound=%d | fullRedraw=%d maxLines=%u renderSkipped=%d | idle avg=%lldus core1 idle=%d%%\n",
-                      (int)((int64_t)dbgFrameCnt * frameTimeUs * 100 / (wall > 0 ? wall : 1)), dbgFrameCnt, (long long)(wall / 1000),
-                      dbgHist[0], dbgHist[1], dbgHist[2], dbgHist[3], (long long)dbgRendMax, (long long)dbgRestMax,
-                      dbgSkipFix, dbgCpuBound, dbgFull, (unsigned)dbgLinesMax, dbgRendSkipped, (long long)(dbgIdle / dbgFrameCnt),
-                      (int)((uint64_t)c1 * 100 / ((uint64_t)(wall > 0 ? wall : 1) * 240)));
-        dbgIdle = dbgRendMax = dbgRestMax = 0;
-        dbgHist[0] = dbgHist[1] = dbgHist[2] = dbgHist[3] = 0;
-        dbgSkipFix = dbgCpuBound = dbgFull = dbgRendSkipped = 0;
-        dbgLinesMax = 0;
-      }
-      Serial.printf("FRAME us: min=%lld max=%lld avg=%lld overBudget=%d/%d (budget=%lld)\n",
-                    (long long)dbgMin, (long long)dbgMax, (long long)(dbgSum / dbgFrameCnt),
-                    dbgOverBudget, dbgFrameCnt, (long long)frameTimeUs);
-#ifdef X1_PROFILE
-      {
-        const double div = 240.0 * dbgFrameCnt;
-        double z80 = profZ80 / div, tick = profTick / div, rend = x1_prof_render / div, end = profEnd / div;
-        double avg = (double)dbgSum / dbgFrameCnt;
-        Serial.printf("PROF us/frame: z80=%.0f render=%.0f (txt=%.0f rd=%.0f bmp=%.0f) tickOther=%.0f frameEnd=%.0f unaccounted=%.0f | us/cyc=%.3f %s %dx%d hres=%d 1FD0=%02X pri=%02X lines=%u/%d txtSame=%u\n",
-                      z80, rend, x1_prof_txt / div, x1_prof_rd / div, x1_prof_bmp / div,
-                      tick - rend, end, avg - (z80 + tick + end),
-                      z80 / ((double)x1_lines_frame * x1_cyc_line), x1_hireso ? "24kHz" : "15kHz", x1_cyc_line, x1_lines_frame,
-                      (int)hres_mode, x1_mode1, priority_reg, (unsigned)(x1_lines_drawn / dbgFrameCnt), x1_disp_lines,
-                      (unsigned)(x1_lines_txtsame / dbgFrameCnt));
-        profZ80 = profTick = profEnd = 0;
-        x1_prof_render = 0;
-        x1_prof_rd = x1_prof_bmp = x1_prof_txt = 0;
-        x1_lines_drawn = 0;
-        x1_lines_txtsame = 0;
-      }
-#endif
-#ifdef X1_RAM_STATS
-      {
-        Serial.printf("RAM hits/60f: p0=%u p1=%u p2=%u p3=%u\n",
-                      (unsigned)x1_ram_hits[0], (unsigned)x1_ram_hits[1],
-                      (unsigned)x1_ram_hits[2], (unsigned)x1_ram_hits[3]);
-        for (int i = 0; i < X1_RAM_PAGES; i++) x1_ram_hits[i] = 0;
-      }
-#endif
-      dbgMin = INT64_MAX; dbgMax = 0; dbgSum = 0; dbgOverBudget = 0; dbgFrameCnt = 0;
+      const int64_t wall = esp_timer_get_time() - dbgWinStart;
+      Serial.printf("SPEED: %d%% of real | frame us min=%lld max=%lld avg=%lld over=%d/%d (budget %lld) | idle avg=%lldus\n",
+                    (int)((int64_t)dbgFrameCnt * frameTimeUs * 100 / (wall > 0 ? wall : 1)),
+                    (long long)dbgMin, (long long)dbgMax, (long long)(dbgSum / dbgFrameCnt), dbgOverBudget, dbgFrameCnt,
+                    (long long)frameTimeUs, (long long)(dbgIdle / dbgFrameCnt));
+      dbgMin = INT64_MAX; dbgMax = dbgSum = dbgIdle = 0;
+      dbgOverBudget = dbgFrameCnt = 0;
     }
 #endif
 
@@ -1423,22 +1356,11 @@ void setup() {
   esp_task_wdt_delete(NULL);
   delay(100);
 
-#ifdef USE_SERIAL_DEBUG
-  #define HEAPLOG(tag) Serial.printf("HEAP[%-10s] free=%6u largest=%6u\n", (tag), \
-      (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL), \
-      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL))
-#else
-  #define HEAPLOG(tag)
-#endif
-  HEAPLOG("boot");
-
   PS2Controller.begin(PS2Preset::KeyboardPort0_MousePort1, fabgl::KbdMode::NoVirtualKeys);
-  HEAPLOG("after PS2");
   PS2Controller.keyboard()->begin(GPIO_NUM_33, GPIO_NUM_32, false, false);
   PS2Controller.keyboard()->setLEDs(false, false, false);
   Serial1.begin(115200, SERIAL_8N1, 39, -1);
 
-  HEAPLOG("before VGA");
   DisplayController.begin();
   {
     static char mode[96];
@@ -1447,7 +1369,6 @@ void setup() {
     DisplayController.setResolution(mode, -1, -1, false);
     Serial.printf("VGA: %s (%.2fHz)\n", mode, 25175000.0 / 800 / X1_VGA_VTOTAL);
   }
-  HEAPLOG("after VGA");
 
   x1_ipl_rom = (uint8_t*)ps_malloc(X1_IPL_SIZE);
   x1_cgrom   = (uint8_t*)heap_caps_malloc(0x800, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
@@ -1476,7 +1397,6 @@ void setup() {
       x1_ram_page[pg] = p;
     }
   }
-  HEAPLOG("after RAM");
   bool ramOK = true;
   for (int i = 0; i < X1_RAM_PAGES; i++) if (!x1_ram_page[i]) ramOK = false;
 
@@ -1535,6 +1455,9 @@ void setup() {
   SPI.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_CS);
   bool romOK = false;
   if (SD.begin(SD_CS, SPI)) {
+#if EMU_SWITCH
+    emuSwitchCheck("X1TURBO");
+#endif
     romOK = loadFileToBuf("/X1/BIOS/IPLROM.X1T", x1_ipl_rom, X1_IPL_SIZE) || loadFileToBuf("/X1/IPLROM.X1T", x1_ipl_rom, X1_IPL_SIZE);
     bool fontOK = loadFileToBuf("/X1/BIOS/FNT0808.X1", x1_cgrom, 0x800) || loadFileToBuf("/X1/FNT0808.X1", x1_cgrom, 0x800)
                || loadFileToBuf("/X1/FONT.ROM", x1_cgrom, 0x800) || loadFileToBuf("/X1/BIOS/FONT.ROM", x1_cgrom, 0x800);
@@ -1615,12 +1538,7 @@ void setup() {
   Serial.end();
 #endif
 
-#ifdef USE_SERIAL_DEBUG
-  core1IdleLast = xthal_get_ccount();
-  esp_register_freertos_idle_hook_for_cpu(core1IdleHook, 1);
-#endif
   xTaskCreatePinnedToCore(cpuTask, "cpuTask", 8192, NULL, 24, NULL, 0);
-  HEAPLOG("end setup");
 }
 
 static void updateMouse() {
@@ -1648,24 +1566,6 @@ void loop() {
     updateKeyboard();
     updateMouse();
 
-#ifdef USE_SERIAL_DEBUG
-    static int dbgFrameCnt = 0;
-    if (++dbgFrameCnt >= 300) {
-      dbgFrameCnt = 0;
-      char dbg[96];
-      x1FdcDebugDump(dbg, sizeof(dbg));
-      Serial.print("FDC ");
-      Serial.println(dbg);
-      Serial.print("TVRAM[0..15]: ");
-      for (int i = 0; i < 16; i++) {
-        Serial.printf("%02X ", M.tvram[i]);
-      }
-      Serial.println();
-      Serial.printf("VID R1=%d R6=%d R9=%d R12/13=%04X pal B/R/G=%02X/%02X/%02X pri=%02X hres=%d portC=%02X joy=%02X/%02X PC=%04X IFF=%02X\n",
-                    crtc_regs[1], crtc_regs[6], crtc_regs[9], (crtc_regs[12] << 8) | crtc_regs[13], pal_b, pal_r, pal_g,
-                    priority_reg, (int)hres_mode, x1PpiRead(0x1A02), x1JoyPort(0), x1JoyPort(1), cpu.PC.W, cpu.IFF);
-    }
-#endif
   } else {
     vTaskDelay(1);
   }

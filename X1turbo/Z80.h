@@ -19,6 +19,12 @@ extern "C" {
 
 #define LSB_FIRST
 #define EXECZ80
+#ifndef X1_IDLE_SKIP
+#define X1_IDLE_SKIP 1
+#endif
+extern unsigned long x1_ext_wr;
+#if X1_IDLE_SKIP
+#endif
 
 #define INT_RST00   0x00C7
 #define INT_RST08   0x00CF

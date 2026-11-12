@@ -26,22 +26,6 @@
 #define X1_RAM_PAGE_MASK  (X1_RAM_PAGE_SZ - 1)
 #define X1_RAM_PAGES      4
 
-#define X1_PROFILE
-#ifdef X1_PROFILE
-static inline uint32_t x1Ccount() {
-#ifdef ARDUINO
-    uint32_t c;
-    __asm__ __volatile__("rsr %0, ccount" : "=a"(c));
-    return c;
-#else
-    return 0;
-#endif
-}
-extern uint32_t x1_prof_render;
-extern uint32_t x1_prof_rd, x1_prof_bmp, x1_prof_txt;
-void x1MemBench();
-#endif
-
 struct X1Memory {
     uint8_t *ram_page[X1_RAM_PAGES];
     uint8_t *ipl_rom;
@@ -123,6 +107,8 @@ void    x1DmaRdy(bool ready);
 bool    x1DmaIrqPending();
 uint8_t x1DmaIrqAck();
 int     x1DmaTakeCycles();
+extern "C" unsigned long x1_ext_wr;
+extern "C" int x1IoPeek(uint16_t port, uint8_t *v);
 void    x1SioReset();
 void    x1SioScanlineTick();
 uint8_t x1SioRead(uint16_t port);
@@ -184,8 +170,6 @@ extern uint32_t x1_vram_gen;
 extern uint32_t x1_gv_gen[8][128];
 extern uint32_t x1_tx_gen[128];
 extern uint32_t x1_pcg_gen;
-extern uint32_t x1_lines_drawn;
-extern uint32_t x1_lines_txtsame;
 static inline void x1MarkGv(uint16_t ofs) { x1_gv_gen[(ofs >> 11) & 7][(ofs >> 4) & 127] = ++x1_vram_gen; }
 static inline void x1MarkTx(uint16_t ofs) { x1_tx_gen[(ofs >> 4) & 127] = ++x1_vram_gen; }
 void x1VideoInvalidate();

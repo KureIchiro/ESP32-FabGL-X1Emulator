@@ -44,7 +44,8 @@ The Z80 core follows Marat Fayzullin's **fMSX License**; FabGL follows its own l
 - **Board Manager**: ESP32 by Espressif Systems (**v2.0.5 Recommended**)
 - **Library**: FabGL v1.0.9
 - **Board**: `ESP32 Dev Module` (TTGO VGA32)
-- **PSRAM**: `"Enabled"` (required). Older ESP32 chips (revision 0–2, found on many TTGO VGA32 boards) have a PSRAM bug (Espressif errata CPU-3.9), and `"Enabled"` makes the compiler add a workaround for it. On chip revision 3 or later you may choose `"Disabled"` instead: the sketch turns PSRAM on by itself and runs about 30% faster without the workaround. On an older chip a `"Disabled"` build stops at startup with a message, because it could occasionally corrupt memory. The upload log shows the revision (e.g. "Chip is ESP32-D0WDQ6 (revision 1)").
+- **PSRAM** (ON = `"Enabled"`, OFF = `"Disabled"`): With PSRAM ON, a software workaround for the chip errata (Espressif errata CPU-3.9) is built in, and the speed drops by about 20%. With PSRAM OFF, the sketch enables PSRAM by itself and the software workaround is not built in. However, this causes failures unless the ESP32 is chip revision 3 or later, so on any other revision a PSRAM OFF build is made not to start. This project uses frame skipping to keep the feel close to the real machine; turning PSRAM OFF brings it closer to 60/55 FPS.
+- **Switching machines with EmuLauncher** (optional): copy `emu_switch.h` and `partitions.csv` from the `EmuLauncher` folder into this sketch folder. The boot menu then gets **Next** (the machine to start next), and the flash is laid out as in `partitions.csv` (the Partition Scheme setting is not used). Without the two files the sketch works on its own as before. See `EmuLauncher/README.md`.
 - **VGA refresh** (`X1_VGA_HZ` at the top of `X1turbo.ino`): `55` = 55.5 Hz (default, same speed as the real machine). If your monitor does not show 55.5 Hz, choose `56`, `57` or `60`; the software then runs 1 %, 3 % or 8 % faster.
 
 ---
@@ -73,6 +74,7 @@ The ROM files may also be placed directly in `/X1`.
 | Fd0 / Fd1 | Choose a disk image for each drive. For a file containing several disks, choose which one. If Fd0 is such a file and Fd1 is empty, the next disk goes to Fd1 automatically. The selector opens in the folder of the most recently chosen disk. |
 | JoyToKey | ON / OFF: use controller 1 as keys (see Joystick) |
 | Joy B1–B3 | The keys for controller buttons 1–3 while JoyToKey is ON. Press Enter, then the key (F6–F12 cancels). Saved in `/X1/JOYKEY.CFG`. |
+| Next | The machine to start next. Shown only with EmuLauncher's two files (see Build Settings). Enter changes it; it takes effect at the next power-on or reset. |
 | Run | Start |
 
 The boot menu and the disk selectors can also be operated with the 1P controller: Up/Down = select (repeats while held), Left/Right = page up/down, button 1 = Enter, button 2 = cancel (ESC).
@@ -177,7 +179,8 @@ Z80 コアは Marat Fayzullin 氏の **fMSX License**、FabGL はそのライセ
 - **ボードマネージャ**: ESP32 by Espressif Systems（**v2.0.5 推奨**）
 - **ライブラリ**: FabGL v1.0.9
 - **ボード**: `ESP32 Dev Module`（TTGO VGA32）
-- **PSRAM**: `"Enabled"`（必須）。古い ESP32（リビジョン 0〜2。TTGO VGA32 にも多い）には PSRAM の不具合（Espressif errata CPU-3.9）があり、`"Enabled"` にするとコンパイラがその回避策を入れます。チップがリビジョン 3 以降なら `"Disabled"` でもよく、スケッチが起動時に PSRAM を有効にし、回避策が入らないぶん約 3 割速くなります。古いチップで `"Disabled"` にしたものは、まれにメモリが壊れるため、起動時に理由を表示して止まります。リビジョンは書き込みのときのログ（「Chip is ESP32-D0WDQ6 (revision 1)」など）で分かります。
+- **PSRAM**（ON = `"Enabled"`、OFF = `"Disabled"`）: PSRAMをONにするとソフトでのエラッタ対策が入り、20%程度速度が低下します。PSRAMをOFFにするとソフトでPSRAMを有効にし、ソフトでのエラッタ対策は入りません。但し、ESP32のリビジョンが3以降でないと不具合が発生するため、それ以外のリビジョンでPSRAMをOFFにしても起動しなくしてあります。本プロジェクトではフレームスキップで実機に近い操作感を実現しており、PSRAMをOFFにすることでより60/55FPSに近くなります。
+- **EmuLauncher での機種の切り替え**（使うときだけ）: `EmuLauncher` のフォルダの `emu_switch.h` と `partitions.csv` を、このスケッチのフォルダにコピーします。起動メニューに **Next**（次に起動する機種）が出て、フラッシュの分け方が `partitions.csv` のとおりになります（Partition Scheme の設定は使われません）。2 つのファイルが無ければ、今までどおり単体で動きます。詳しくは `EmuLauncher/README.md` を見てください。
 - **VGA の縦の周波数**（`X1turbo.ino` の先頭の `X1_VGA_HZ`）: `55` = 55.5Hz（既定。実機と同じ速さ）。モニタに 55.5Hz が映らないときは `56`・`57`・`60` から選びます（そのぶんソフトが 1%・3%・8% 速くなります）。
 
 ---
@@ -206,6 +209,7 @@ ROM のファイルは `/X1` の直下に置いてもかまいません。
 | Fd0 / Fd1 | 各ドライブのディスクイメージを選ぶ。複数枚入ったファイルは何枚目かを選ぶ。Fd0 に複数枚入ったファイルを選び Fd1 が空なら、次の 1 枚を自動で Fd1 に入れる。選択画面は、最後に選んだディスクのフォルダから開く。 |
 | JoyToKey | ON / OFF: コントローラ 1 をキーとして使う（「ジョイスティック」を参照） |
 | Joy B1〜B3 | JoyToKey が ON のときの、コントローラのボタン 1〜3 のキー。Enter を押してからキーを押す（F6〜F12 で取り消し）。`/X1/JOYKEY.CFG` に保存。 |
+| Next | 次に起動する機種。EmuLauncher の 2 つのファイルを置いたときだけ出ます（ビルド設定を参照）。Enter で変わり、電源を入れ直すかリセットすると切り替わります。 |
 | Run | 起動 |
 
 起動メニューとディスクの選択画面は、1P のコントローラでも操作できます：↑↓ = 選択（押し続けると連続）、←→ = 1画面送り、ボタン 1 = 決定（Enter）、ボタン 2 = 取り消し（ESC）。

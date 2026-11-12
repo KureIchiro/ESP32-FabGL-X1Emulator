@@ -67,6 +67,7 @@ static int      fdc_write_idle;
 #define FDC_BYTE_CYC       128
 static int      fdc_read_idle;
 static int      fdc_read_drain;
+static int      fdc_dma_cyc;
 #define FDC_RNF_CYC 4000000
 static int      fdc_search_cyc;
 static uint8_t  search_status;
@@ -104,7 +105,8 @@ void x1FdcReset() {
     fdc_ctrl_reg = 0;
     fdc_drq_delay = 0;
     fdc_read_idle = fdc_read_drain = 0;
-    motor_on = motor_spinning_up = motor_stopping = false;
+    fdc_dma_cyc = 0;
+    motor_on =motor_spinning_up = motor_stopping = false;
     motor_timer_ms = 0;
 }
 
@@ -266,6 +268,7 @@ static void startSector(bool write) {
     fdc.Status = 0x03;
     fdc_drq_delay = FDC_DRQ_DELAY_CYC;
     fdc_read_idle = fdc_read_drain = 0;
+    fdc_dma_cyc = 0;
 }
 
 static void sectorDone(bool write) {
@@ -385,13 +388,13 @@ static void executeCommand(uint8_t cmd) {
     fdc.Command = cmd;
     fdc_intrq = intrq_hold = false;
     data_index = 0;
+    fdc_dma_cyc = 0;
     fdc_seek_busy = 0;
     fdc_write_idle = 0;
 
     if ((cmd & 0xF0) == 0xD0) {
-        if (mode == M_IDLE) fdc.Status = 0;
+        if (mode == M_IDLE) { fdc.Status = 0; typeI = true; }
         mode = M_IDLE;
-        typeI = true;
         if (cmd & 0x08) fdc_intrq = intrq_hold = true;
         else if (cmd & 0x04) fdc_intrq = true;
         return;
@@ -479,10 +482,15 @@ static uint8_t readStatus() {
 
 bool x1FdcDrq() {
     if (mode == M_IDLE || fdc_drq_delay > 0 || data_index >= data_len) return false;
+    if (fdc_dma_cyc < FDC_BYTE_CYC) return false;
     return mode == M_READ || mode == M_READADDR || mode == M_READTRACK || mode == M_WRITE || mode == M_WRITETRACK;
 }
 
 void x1FdcScanlineTick() {
+    if (mode != M_IDLE && fdc_drq_delay <= 0 && data_index < data_len) {
+        fdc_dma_cyc += x1_cyc_line;
+        if (fdc_dma_cyc > 3 * FDC_BYTE_CYC) fdc_dma_cyc = 3 * FDC_BYTE_CYC;
+    }
     if (fdc_drq_delay > 0) { fdc_drq_delay -= x1_cyc_line; if (fdc_drq_delay < 0) fdc_drq_delay = 0; }
     else if ((mode == M_WRITE || mode == M_WRITETRACK) && data_index == 0) {
         fdc_write_idle += x1_cyc_line;
@@ -506,6 +514,7 @@ void x1FdcScanlineTick() {
 static uint8_t readData() {
     if ((mode == M_READ || mode == M_READADDR || mode == M_READTRACK) && fdc_drq_delay == 0 && data_index < data_len) {
         uint8_t val = data_ptr[data_index++];
+        if (fdc_dma_cyc >= FDC_BYTE_CYC) fdc_dma_cyc -= FDC_BYTE_CYC;
         fdc.Data = val;
         fdc_read_idle = 0;
         if (data_index >= data_len) {
@@ -522,6 +531,7 @@ static void writeData(uint8_t val) {
     fdc.Data = val;
     if ((mode == M_WRITE || mode == M_WRITETRACK) && fdc_drq_delay == 0 && data_index < data_len) {
         data_ptr[data_index++] = val;
+        if (fdc_dma_cyc >= FDC_BYTE_CYC) fdc_dma_cyc -= FDC_BYTE_CYC;
         if (data_index >= data_len) {
             if (mode == M_WRITE) sectorDone(true);
             else { applyWriteTrack(); finish(0); }

@@ -143,8 +143,14 @@ Z80_FORCEINLINE byte OpZ80(zword A)        { return(x1_rd_map[A>>12][A&0x0FFF]);
   RPC.W=J.W; \
   JumpZ80(J.W)
 
+#if X1_IDLE_SKIP
+#define M_JP  J.B.l=OpZ80(RPC.W++);J.B.h=OpZ80(RPC.W);SPIN_HOOK((zword)(RPC.W-2),J.W);RPC.W=J.W;JumpZ80(J.W)
+#define M_JR  { const zword sb_=(zword)(RPC.W-1); RPC.W+=(offset)OpZ80(RPC.W)+1; SPIN_HOOK(sb_,RPC.W); } JumpZ80(RPC.W)
+#define SPIN_HOOK(b,t) ((void)0)
+#else
 #define M_JP  J.B.l=OpZ80(RPC.W++);J.B.h=OpZ80(RPC.W);RPC.W=J.W;JumpZ80(J.W)
 #define M_JR  RPC.W+=(offset)OpZ80(RPC.W)+1;JumpZ80(RPC.W)
+#endif
 #define M_RET RPC.B.l=OpZ80(R->SPtr.W++);RPC.B.h=OpZ80(R->SPtr.W++);JumpZ80(RPC.W)
 
 #define M_RST(Ad)      \
@@ -511,6 +517,198 @@ void ResetZ80(Z80 *R)
   JumpZ80(R->PC.W);
 }
 
+unsigned long x1_ext_wr;
+#if X1_IDLE_SKIP
+typedef struct { zword t, b; signed char kind, fails; byte len, cnt, nio, memrd, djnz, rr; int expC; byte code[12]; } SpLoop;
+#define SP_N 8
+#define SP_MAXLEN 8
+static SpLoop sp_tab[SP_N];
+static SpLoop *sp_cur;
+static int sp_have;
+static unsigned sp_clk, sp_base, sp_stamp;
+static unsigned long sp_ext;
+static zword sp_r[11];
+static byte sp_pv;
+int x1IoPeek(zword port, byte *v);
+static inline int spPeek(zword a, byte *v) { *v = x1_rd_map[a >> 12][a & 0x0FFF]; return 1; }
+enum { RB_B = 1, RB_C = 2, RB_D = 4, RB_E = 8, RB_H = 16, RB_L = 32, RB_A = 128, RB_F = 256, RB_SP = 512, RB_ALT = 1024 };
+static const unsigned short spRegBit[8] = { RB_B, RB_C, RB_D, RB_E, RB_H, RB_L, RB_H | RB_L, RB_A };
+static const unsigned short spPairBit[4] = { RB_B | RB_C, RB_D | RB_E, RB_H | RB_L, RB_SP };
+static int spDecode(zword a, int *c, unsigned *rd, unsigned *wr, int *io, int *mem) {
+  byte op, v;
+  *rd = *wr = 0; *io = *mem = 0;
+  spPeek(a, &op);
+  if (op == 0xCB) {
+    spPeek((zword)(a + 1), &v);
+    if (v < 0x40 || v > 0x7F) return 0;
+    *c = Cycles[0xCB] + CyclesCB[v]; *rd = spRegBit[v & 7]; *wr = RB_F; *mem = (v & 7) == 6; return 2;
+  }
+  if (op == 0xED) {
+    spPeek((zword)(a + 1), &v);
+    if ((v & 0xC7) != 0x40 || v == 0x70) return 0;
+    *c = Cycles[0xED] + CyclesED[v]; *rd = RB_B | RB_C | RB_F; *wr = spRegBit[(v >> 3) & 7] | RB_F; *io = 1; return 2;
+  }
+  *c = Cycles[op];
+  if (op >= 0x40 && op <= 0x7F) {
+    if (op == 0x76 || (op & 0xF8) == 0x70) return 0;
+    *rd = spRegBit[op & 7]; *wr = spRegBit[(op >> 3) & 7]; *mem = (op & 7) == 6; return 1;
+  }
+  if (op >= 0x80 && op <= 0xBF) {
+    const int k = (op >> 3) & 7;
+    *rd = RB_A | spRegBit[op & 7] | ((k == 1 || k == 3) ? RB_F : 0); *wr = RB_F | (k == 7 ? 0 : RB_A); *mem = (op & 7) == 6; return 1;
+  }
+  switch (op) {
+    case 0x00: return 1;
+    case 0x07: case 0x0F: *rd = RB_A; *wr = RB_A | RB_F; return 1;
+    case 0x17: case 0x1F: *rd = RB_A | RB_F; *wr = RB_A | RB_F; return 1;
+    case 0x2F: *rd = RB_A; *wr = RB_A | RB_F; return 1;
+    case 0x37: *wr = RB_F; return 1;
+    case 0x3F: *rd = RB_F; *wr = RB_F; return 1;
+    case 0x0A: *rd = RB_B | RB_C; *wr = RB_A; *mem = 1; return 1;
+    case 0x1A: *rd = RB_D | RB_E; *wr = RB_A; *mem = 1; return 1;
+    case 0x3A: *wr = RB_A; *mem = 1; return 3;
+    case 0x2A: *wr = RB_H | RB_L; *mem = 1; return 3;
+    case 0x01: case 0x11: case 0x21: case 0x31: *wr = spPairBit[op >> 4]; return 3;
+    case 0x03: case 0x13: case 0x23: case 0x33: case 0x0B: case 0x1B: case 0x2B: case 0x3B:
+      *rd = *wr = spPairBit[(op >> 4) & 3]; return 1;
+    case 0xEB: *rd = *wr = RB_D | RB_E | RB_H | RB_L; return 1;
+    case 0x08: case 0xD9:
+      *rd = *wr = RB_ALT | RB_A | RB_F | RB_B | RB_C | RB_D | RB_E | RB_H | RB_L; return 1;
+    case 0xC6: case 0xD6: case 0xE6: case 0xEE: case 0xF6: case 0xFE:
+      *rd = RB_A; *wr = RB_F | (op == 0xFE ? 0 : RB_A); return 2;
+    case 0xCE: case 0xDE: *rd = RB_A | RB_F; *wr = RB_A | RB_F; return 2;
+  }
+  if ((op & 0xC6) == 0x04 && (op & 0x38) != 0x30) {
+    *rd = *wr = spRegBit[(op >> 3) & 7] | RB_F; return 1;
+  }
+  if ((op & 0xC7) == 0x06 && op != 0x36) { *wr = spRegBit[(op >> 3) & 7]; return 2; }
+  return 0;
+}
+static Z80_NOINLINE void spClassify(SpLoop *s, zword t, zword b) {
+  byte op;
+  zword a = t, last = t;
+  int c = 0, blen, bc, n, ci, io, mem;
+  unsigned rd, wr, rdAll = 0, wrAll = 0, rdOther = 0, wrOther = 0, lastRd = 0, lastWr = 0;
+  s->t = t; s->b = b; s->kind = 0; s->fails = 0; s->nio = 0; s->memrd = 0; s->djnz = 0;
+  spPeek(b, &op);
+  switch (op) {
+    case 0x18: blen = 2; bc = Cycles[op]; break;
+    case 0x20: case 0x28: case 0x30: case 0x38: blen = 2; bc = Cycles[op] + 5; break;
+    case 0x10: blen = 2; bc = Cycles[op] + 5; s->djnz = 1; break;
+    case 0xC3: case 0xC2: case 0xCA: case 0xD2: case 0xDA: case 0xE2: case 0xEA: case 0xF2: case 0xFA:
+      blen = 3; bc = Cycles[op]; break;
+    default: return;
+  }
+  while (a != b) {
+    if ((zword)(b - a) > SP_MAXLEN) return;
+    n = spDecode(a, &ci, &rd, &wr, &io, &mem);
+    if (!n) return;
+    rdOther |= lastRd; wrOther |= lastWr;
+    lastRd = rd; lastWr = wr; last = a;
+    c += ci; rdAll |= rd; wrAll |= wr;
+    if (mem) s->memrd = 1;
+    if (io && ++s->nio > 2) return;
+    a = (zword)(a + n);
+  }
+  if (s->nio && (wrAll & (RB_B | RB_C))) return;
+  s->len = (byte)((zword)(b - t) + blen);
+  for (int k = 0; k < s->len; k++) spPeek((zword)(t + k), &s->code[k]);
+  s->expC = c + bc;
+  if (s->djnz) {
+    if ((rdAll | wrAll) & (RB_B | RB_ALT)) return;
+    s->kind = 3; s->cnt = 0; return;
+  }
+  op = s->code[(zword)(b - t)];
+  if (b - t == 3 && (op == 0x20 || op == 0xC2)) {
+    const byte d = s->code[0], v = s->code[1], w = s->code[2];
+    if ((d == 0x0B && ((v == 0x78 && w == 0xB1) || (v == 0x79 && w == 0xB0))) ||
+        (d == 0x1B && ((v == 0x7A && w == 0xB3) || (v == 0x7B && w == 0xB2))) ||
+        (d == 0x2B && ((v == 0x7C && w == 0xB5) || (v == 0x7D && w == 0xB4)))) { s->kind = 2; s->rr = (byte)(d >> 4); return; }
+  }
+  if ((op == 0x20 || op == 0xC2) && b != t) {
+    byte d; spPeek(last, &d);
+    if ((d & 0xC7) == 0x05 && d != 0x35) {
+      const unsigned rb = spRegBit[(d >> 3) & 7];
+      if (!((rdOther | wrOther) & (rb | RB_ALT))) { s->kind = 3; s->cnt = (byte)((d >> 3) & 7); return; }
+    }
+  }
+  s->kind = 1;
+}
+#define SP_REGS(X) X(0,AF) X(1,BC) X(2,DE) X(3,HL) X(4,IX) X(5,IY) X(6,SPtr) X(7,AF1) X(8,BC1) X(9,DE1) X(10,HL1)
+static const signed char spCntWord[8] = { 1, 1, 2, 2, 3, 3, -1, 0 };
+static inline byte *spCntPtr(Z80 *R, int r) {
+  switch (r) { case 0: return &R->BC.B.h; case 1: return &R->BC.B.l; case 2: return &R->DE.B.h; case 3: return &R->DE.B.l;
+               case 4: return &R->HL.B.h; case 5: return &R->HL.B.l; default: return &R->AF.B.h; }
+}
+static Z80_NOINLINE int IRAM_ATTR spHook(Z80 *R, zword b, zword t, int lic) {
+  SpLoop *s = &sp_tab[(t ^ (t >> 3)) & (SP_N - 1)];
+  if (s != sp_cur || s->t != t || s->b != b) {
+    if (s->t != t || s->b != b) spClassify(s, t, b);
+    sp_cur = s; sp_have = 0;
+  }
+  if (s->kind <= 0) return lic;
+  const unsigned now = sp_base - (unsigned)lic;
+  byte pv = 0;
+  int pok = 1;
+  if (s->nio) pok = x1IoPeek(R->BC.W, &pv);
+  if (sp_have && now - sp_stamp == (unsigned)s->expC && lic > s->expC && !(R->IFF & IFF_EI)) {
+    int same = pok && (!s->nio || pv == sp_pv) && (!s->memrd || x1_ext_wr == sp_ext);
+    for (int k = 0; k < s->len && same; k++) { byte v; spPeek((zword)(t + k), &v); if (v != s->code[k]) { spClassify(s, t, b); sp_have = 0; return lic; } }
+    if (s->kind == 1) {
+#define SP_CMP(k,Rg) if (R->Rg.W != sp_r[k]) same = 0;
+      SP_REGS(SP_CMP)
+#undef SP_CMP
+      if (same) {
+        const int n = (lic - 1) / s->expC;
+        lic -= n * s->expC; s->fails = 0;
+      } else if (++s->fails >= 4) { s->kind = 0; return lic; }
+    } else if (s->kind == 2) {
+      pair *rr = s->rr == 0 ? &R->BC : s->rr == 1 ? &R->DE : &R->HL;
+      if (same && rr->W == (zword)(sp_r[s->rr + 1] - 1) && rr->W >= 2) {
+        int n = (lic - 1) / s->expC;
+        if (n > rr->W - 1) n = rr->W - 1;
+        if (n > 0) {
+          rr->W = (zword)(rr->W - n);
+          R->AF.B.h = (byte)(rr->B.h | rr->B.l);
+          R->AF.B.l = PZSTable[R->AF.B.h];
+          lic -= n * s->expC;
+        }
+      }
+    } else {
+      const int w = spCntWord[s->cnt];
+      const int hi = s->cnt == 7 || !(s->cnt & 1);
+      byte *cp = spCntPtr(R, s->cnt);
+      const byte prev = (byte)(hi ? (sp_r[w] >> 8) : (sp_r[w] & 0xFF));
+      zword m[11];
+      for (int k = 0; k < 11; k++) m[k] = 0xFFFF;
+      m[w] &= (zword)(hi ? 0x00FF : 0xFF00);
+      if (!s->djnz) m[0] &= (zword)(0xFF00 | C_FLAG);
+#define SP_CMPM(k,Rg) if ((R->Rg.W ^ sp_r[k]) & m[k]) same = 0;
+      SP_REGS(SP_CMPM)
+#undef SP_CMPM
+      if (same && *cp == (byte)(prev - 1) && *cp >= 2) {
+        int n = (lic - 1) / s->expC;
+        if (n > *cp - 1) n = *cp - 1;
+        if (n > 0) {
+          *cp = (byte)(*cp - n);
+          if (!s->djnz) {
+            const byte v = *cp;
+            R->AF.B.l = (byte)(N_FLAG | (R->AF.B.l & C_FLAG) | ZSTable[v] | (v == 0x7F ? V_FLAG : 0) | ((v & 0x0F) == 0x0F ? H_FLAG : 0));
+          }
+          lic -= n * s->expC; s->fails = 0;
+        }
+      } else if (++s->fails >= 4) { s->kind = 0; return lic; }
+    }
+  }
+#define SP_SAVE(k,Rg) sp_r[k] = R->Rg.W;
+  SP_REGS(SP_SAVE)
+#undef SP_SAVE
+  sp_pv = pv; sp_ext = x1_ext_wr;
+  sp_stamp = sp_base - (unsigned)lic; sp_have = 1;
+  return lic;
+}
+#endif
+
 #ifdef EXECZ80
 int IRAM_ATTR ExecZ80(register Z80 *R,register int RunCycles)
 {
@@ -526,6 +724,11 @@ int IRAM_ATTR ExecZ80(register Z80 *R,register int RunCycles)
 #define Z80_IOSYNC() (R->ICount=LIC)
 #define Z80_SAVE()   (R->PC=LPC,R->ICount=LIC)
 #define Z80_LOAD()   (LPC=R->PC,LIC=R->ICount)
+#if X1_IDLE_SKIP
+#undef SPIN_HOOK
+#define SPIN_HOOK(b,t) do { if((zword)((b)-(t))<=SP_MAXLEN) LIC=spHook(R,(b),(t),LIC); } while(0)
+  sp_base=sp_clk+(unsigned)RunCycles;
+#endif
 
   LPC=R->PC;
   for(LIC=RunCycles;;)
@@ -554,9 +757,16 @@ int IRAM_ATTR ExecZ80(register Z80 *R,register int RunCycles)
       }
     }
 
+#if X1_IDLE_SKIP
+    if(!(R->IFF&IFF_EI)) { Z80_SAVE(); sp_clk=sp_base-(unsigned)LIC; return(LIC); }
+#else
     if(!(R->IFF&IFF_EI)) { Z80_SAVE(); return(LIC); }
+#endif
     else
     {
+#if X1_IDLE_SKIP
+      sp_have=0;
+#endif
       R->IFF=(R->IFF&~IFF_EI)|IFF_1;
       LIC+=R->IBackup-1;
       if((R->IRequest!=INT_NONE)&&(R->IRequest!=INT_QUIT))
@@ -572,6 +782,10 @@ int IRAM_ATTR ExecZ80(register Z80 *R,register int RunCycles)
 #undef Z80_IOSYNC
 #undef Z80_SAVE
 #undef Z80_LOAD
+#if X1_IDLE_SKIP
+#undef SPIN_HOOK
+#define SPIN_HOOK(b,t) ((void)0)
+#endif
 #define RPC (R->PC)
 #define RIC (R->ICount)
 #define Z80_IOSYNC() ((void)0)

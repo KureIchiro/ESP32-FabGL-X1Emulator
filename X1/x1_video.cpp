@@ -101,8 +101,6 @@ uint32_t x1_vram_gen = 0;
 uint32_t x1_gv_gen[8][128];
 uint32_t x1_tx_gen[128];
 uint32_t x1_pcg_gen = 0;
-uint32_t x1_lines_drawn = 0;
-uint32_t x1_lines_txtsame = 0;
 static uint32_t videoGen = 1;
 static uint32_t lineCg[X1_SCREEN_H], lineTx[X1_SCREEN_H], lineTxt[X1_SCREEN_H];
 static uint8_t  lineFlags[X1_SCREEN_H];
@@ -380,7 +378,6 @@ void IRAM_ATTR x1RenderLine(int y) {
         uint32_t bk = videoGen * 0x9E3779B1u ^ 0x5BD1E995u;
         if (lineCg[y] == bk && lineTx[y] == 0 && lineFlags[y] == 0x80) return;
         for (int i = 0; i < X1_SCREEN_W / 4; i++) o[i] = blackW;
-        x1_lines_drawn++;
         lineCg[y] = bk; lineTx[y] = 0; lineFlags[y] = 0x80;
         lineColors[y] = 0; lineColorKey[y] = 0; lineColorStamp[y] = colorGenCnt;
         return;
@@ -405,9 +402,6 @@ void IRAM_ATTR x1RenderLine(int y) {
     uint8_t cm = 0xFF;
     uint32_t orw = 0, andw = 0xFFFFFFFFu;
 
-#ifdef X1_PROFILE
-    uint32_t pc0 = x1Ccount();
-#endif
     const bool rowDblH    = (M.avram[rowBase & 0x7FF] & 0x40) != 0;
     if (rowDblH && row > 0) newFl |= 4;
     const bool blankLine  = ty >= 8;
@@ -475,16 +469,10 @@ void IRAM_ATTR x1RenderLine(int y) {
         }
         txtHash |= 1;
     }
-#ifdef X1_PROFILE
-    uint32_t pc1 = x1Ccount();
-    x1_prof_txt += pc1 - pc0;
-#endif
     if (txtHash && txtHash == lineTxt[y]) {
         lineTx[y] = txNew; lineFlags[y] = newFl;
-        x1_lines_txtsame++;
         return;
     }
-    x1_lines_drawn++;
 
     uint8_t gl[240];
     uint8_t *const lineB = gl, *const lineR = gl + 80, *const lineG = gl + 160;
@@ -495,9 +483,6 @@ void IRAM_ATTR x1RenderLine(int y) {
         copyWrap(lineR, &gp[GVRAM_R_OFS + planeOfs], start, x_chars);
         copyWrap(lineG, &gp[GVRAM_G_OFS + planeOfs], start, x_chars);
     }
-#ifdef X1_PROFILE
-    uint32_t pc2 = x1Ccount();
-#endif
 
     const bool priGeneric = hasPri && !priFast;
     const uint32_t nzM = hasPri ? priNzM : 0, zM = hasPri ? priZM : 0;
@@ -529,69 +514,4 @@ void IRAM_ATTR x1RenderLine(int y) {
         for (int col = 0; col < 8; col++) if (!(col & ~ob) && (col & ab) == ab) cm |= (uint8_t)(1 << col);
     }
     lineColors[y] = cm; lineColorKey[y] = colorKey(cm); lineColorStamp[y] = colorGenCnt;
-#ifdef X1_PROFILE
-    uint32_t pc3 = x1Ccount();
-    x1_prof_rd  += pc2 - pc1;
-    x1_prof_bmp += pc3 - pc2;
-#endif
 }
-
-#ifdef X1_PROFILE
-uint32_t x1_prof_rd = 0, x1_prof_bmp = 0, x1_prof_txt = 0;
-
-void x1MemBench() {
-    if (!tablesReady || !x1_scanline_rows) return;
-    static uint32_t scratch[160];
-    const uint32_t fill = (uint32_t)x1MakeNativeColor(0, 0, 0) * 0x01010101u;
-    volatile uint32_t sink = 0;
-    uint32_t c0, t_vs, t_is, t_rmw, t_gv, t_rd;
-
-    c0 = x1Ccount();
-    for (int y = 0; y < X1_SCREEN_H; y++) {
-        uint32_t *d = (uint32_t *)x1_scanline_rows[y];
-        for (int i = 0; i < 160; i++) d[i] = fill;
-    }
-    t_vs = x1Ccount() - c0;
-
-    c0 = x1Ccount();
-    for (int y = 0; y < X1_SCREEN_H; y++) {
-        for (int i = 0; i < 160; i++) scratch[i] = fill + y;
-        sink += scratch[y & 127];
-    }
-    t_is = x1Ccount() - c0;
-
-    c0 = x1Ccount();
-    for (int y = 0; y < X1_SCREEN_H; y++) {
-        uint32_t *d = (uint32_t *)x1_scanline_rows[y];
-        for (int i = 0; i < 160; i++) d[i] = d[i] | fill;
-    }
-    t_rmw = x1Ccount() - c0;
-
-    c0 = x1Ccount();
-    {
-        uint32_t s = 0;
-        for (int y = 0; y < X1_SCREEN_H; y++) {
-            int row_ofs_base = (y >> 3) * 80;
-            int plane_ofs = ((y & 7) * 0x800) & 0x3FFF;
-            const uint8_t *gB = &M.gvram[GVRAM_B_OFS], *gR = &M.gvram[GVRAM_R_OFS], *gG = &M.gvram[GVRAM_G_OFS];
-            for (int cx = 0; cx < 80; cx++) s += gB[((cx + row_ofs_base) & 0x7FF) + plane_ofs];
-            for (int cx = 0; cx < 80; cx++) s += gR[((cx + row_ofs_base) & 0x7FF) + plane_ofs];
-            for (int cx = 0; cx < 80; cx++) s += gG[((cx + row_ofs_base) & 0x7FF) + plane_ofs];
-        }
-        sink += s;
-    }
-    t_gv = x1Ccount() - c0;
-
-    x1_prof_rd = x1_prof_bmp = x1_prof_txt = 0;
-    c0 = x1Ccount();
-    for (int y = 0; y < X1_SCREEN_H; y++) x1RenderLine(y);
-    t_rd = x1Ccount() - c0;
-
-    Serial.printf("BENCH us/200lines: vpStore=%u intStore=%u vpRMW=%u gvRead=%u render=%u (rd=%u mix=%u) hres=%d\n",
-                  (unsigned)(t_vs / 240), (unsigned)(t_is / 240), (unsigned)(t_rmw / 240),
-                  (unsigned)(t_gv / 240), (unsigned)(t_rd / 240),
-                  (unsigned)(x1_prof_rd / 240), (unsigned)(x1_prof_bmp / 240), (int)hres_mode);
-    x1_prof_rd = x1_prof_bmp = x1_prof_txt = 0;
-    (void)sink;
-}
-#endif

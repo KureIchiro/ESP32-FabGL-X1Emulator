@@ -44,6 +44,7 @@ The Z80 core follows Marat Fayzullin's **fMSX License**; FabGL follows its own l
 - **Library**: FabGL v1.0.9
 - **Board**: `ESP32 Dev Module` (TTGO VGA32)
 - **PSRAM** (ON = `"Enabled"`, OFF = `"Disabled"`): With PSRAM ON, a software workaround for the chip errata (Espressif errata CPU-3.9) is built in, and the speed drops by about 20%. With PSRAM OFF, the sketch enables PSRAM by itself and the software workaround is not built in. However, this causes failures unless the ESP32 is chip revision 3 or later, so on any other revision a PSRAM OFF build is made not to start. This project uses frame skipping to keep the feel close to the real machine; turning PSRAM OFF brings it closer to 60/55 FPS.
+- **SD card pins** (`SD_SCLK` / `SD_MISO` / `SD_MOSI` / `SD_CS` near the top of the `.ino`): they differ by board. The default is TTGO VGA32 (14 / 2 / 12 / 13). ORANGE ESPer: 14 / 35 / 12 / 13. Switch Science FabGL development board: 14 / 35 / 2 / 13. The FabGL development board wires the SD card to MISO = 16 and MOSI = 17, but on an ESP32-WROVER these two pins are not connected (they are used inside the module for the PSRAM), so jumper 16 → 35 and 17 → 2 on the FabGL board. Enable the block for your board and comment out the others.
 - **Switching machines with EmuLauncher** (optional): copy `emu_switch.h` and `partitions.csv` from the `EmuLauncher` folder into this sketch folder. The boot menu then gets **Next** (the machine to start next), and the flash is laid out as in `partitions.csv` (the Partition Scheme setting is not used). Without the two files the sketch works on its own as before. See `EmuLauncher/README.md`.
 
 ---
@@ -131,7 +132,7 @@ A PS/2 mouse on the mouse port of the board is connected to the emulated mouse b
 <a id="x1turbo-en"></a>
 ## ⚡ X1turbo Version (`X1turbo` folder)
 
-A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](X1turbo/README.md).
+A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](../X1turbo/README.md).
 
 ---
 
@@ -181,6 +182,7 @@ Z80 コアは Marat Fayzullin 氏の **fMSX License**、FabGL はそのライセ
 - **ライブラリ**: FabGL v1.0.9
 - **ボード**: `ESP32 Dev Module`（TTGO VGA32）
 - **PSRAM**（ON = `"Enabled"`、OFF = `"Disabled"`）: PSRAMをONにするとソフトでのエラッタ対策が入り、20%程度速度が低下します。PSRAMをOFFにするとソフトでPSRAMを有効にし、ソフトでのエラッタ対策は入りません。但し、ESP32のリビジョンが3以降でないと不具合が発生するため、それ以外のリビジョンでPSRAMをOFFにしても起動しなくしてあります。本プロジェクトではフレームスキップで実機に近い操作感を実現しており、PSRAMをOFFにすることでより60/55FPSに近くなります。
+- **SD カードのピン**（`.ino` の先頭近くの `SD_SCLK` / `SD_MISO` / `SD_MOSI` / `SD_CS`）: ボードによって違います。既定は TTGO VGA32（14 / 2 / 12 / 13）です。ORANGE ESPer は 14 / 35 / 12 / 13、スイッチサイエンスの FabGL 開発ボードは 14 / 35 / 2 / 13 です。FabGL 開発ボードは SD カードを MISO = 16、MOSI = 17 で配線していますが、ESP32-WROVER ではこの 2 本はモジュールの中で PSRAM に使われていて外にはつながっていない（NC）ため、FabGL ボード上で 16 → 35、17 → 2 にジャンパしてください。使うボードのブロックを有効にし、ほかはコメントにしてください。
 - **EmuLauncher での機種の切り替え**（使うときだけ）: `EmuLauncher` のフォルダの `emu_switch.h` と `partitions.csv` を、このスケッチのフォルダにコピーします。起動メニューに **Next**（次に起動する機種）が出て、フラッシュの分け方が `partitions.csv` のとおりになります（Partition Scheme の設定は使われません）。2 つのファイルが無ければ、今までどおり単体で動きます。詳しくは `EmuLauncher/README.md` を見てください。
 
 ---
@@ -268,7 +270,7 @@ MSX・マーク III・PC-8801 版と同じ変換器・同じ通信仕様です�
 <a id="x1turbo-ja"></a>
 ## ⚡ X1turbo 版（`X1turbo` フォルダ）
 
-高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](X1turbo/README.md) を参照してください。
+高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](../X1turbo/README.md) を参照してください。
 
 ---
 

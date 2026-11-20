@@ -5,7 +5,7 @@
  *
  * 【クレジットと謝辞】
  *  - グラフィック/オーディオエンジン: Fabrizio Di Vittorio氏による FabGL
- *  - Z80 CPUコア: Marat Fayzullin氏によるコードをベースに改変
+ *  - Z80 CPUコア: このシリーズのために書いた z80core(MIT ライセンス。待ちループの早送りは x1_spin.c)
  *
  * 【必要なファイル（SDカード）】
  *  /X1/IPL.ROM     : IPL ROM (4KB)
@@ -46,7 +46,7 @@
 #else
 #define psramFixMissing() (ESP.getChipRevision() < 3)
 #endif
-#include "Z80.h"
+#include "z80core.h"
 #include "x1.h"
 
 //#define USE_SERIAL_DEBUG
@@ -63,7 +63,7 @@
 // #define SD_MOSI 12
 // #define SD_CS   13
 
-// Switch Science FabGL 
+// Switch Science FabGL
 // #define SD_SCLK 14
 // #define SD_MISO 35
 // #define SD_MOSI 2
@@ -75,27 +75,22 @@ struct D88Image { uint32_t ofs, size; char name[18]; };
 static const int D88_MAX_IMAGES = 16;
 
 extern "C" {
-  extern Z80 cpu;
-  byte RdZ80(zword Addr);
-  void WrZ80(zword Addr, byte Value);
-  byte InZ80(zword Port);
-  void OutZ80(zword Port, byte Value);
-  void PatchZ80(Z80* R);
+  extern z80_t cpu;
+  uint8_t InZ80(uint16_t Port);
+  void OutZ80(uint16_t Port, uint8_t Value);
+  int x1Z80Run(z80_t *z, int cycles);
 }
 
-Z80 cpu;
+z80_t cpu;
 
-byte IRAM_ATTR RdZ80(zword Addr) { return x1_rd_map[Addr >> 12][Addr & 0x0FFF]; }
-void IRAM_ATTR WrZ80(zword Addr, byte Value) { x1_wr_map[Addr >> 12][Addr & 0x0FFF] = Value; }
-byte IRAM_ATTR InZ80(zword Port) { return x1ReadIO(Port); }
-void IRAM_ATTR OutZ80(zword Port, byte Value) {
+uint8_t IRAM_ATTR InZ80(uint16_t Port) { return x1ReadIO(Port); }
+void IRAM_ATTR OutZ80(uint16_t Port, uint8_t Value) {
   x1WriteIO(Port, Value);
-  cpu.ICount -= x1DmaTakeCycles();
+  cpu.icount -= x1DmaTakeCycles();
 }
-void PatchZ80(Z80* R) {}
 
 int x1LineCycle() {
-  int c = CPU_CYCLES_PER_LINE - cpu.ICount;
+  int c = CPU_CYCLES_PER_LINE - cpu.icount;
   return c < 0 ? 0 : c >= CPU_CYCLES_PER_LINE ? CPU_CYCLES_PER_LINE - 1 : c;
 }
 
@@ -1279,7 +1274,7 @@ void cpuTask(void *pvParameters) {
     if (resetRequest) {
       resetRequest = false;
       x1Reset();
-      ResetZ80(&cpu);
+      z80core_reset(&cpu);
 #if X1_OPM_BOARD
       opmResetRequest = true;
 #endif
@@ -1294,7 +1289,7 @@ void cpuTask(void *pvParameters) {
     prevNoWait = noWait;
     for (int i = 0; i < X1_LINES_PER_FRAME; i++) {
       int run = CPU_CYCLES_PER_LINE - cpuDebt - x1DmaTakeCycles();
-      if (run > 0) cpuDebt = -ExecZ80(&cpu, run); else cpuDebt = -run;
+      if (run > 0) cpuDebt = -x1Z80Run(&cpu, run); else cpuDebt = -run;
       x1ScanlineTick(i);
 #if X1_OPM_BOARD
       opmEmuClock += CPU_CYCLES_PER_LINE;
@@ -1303,9 +1298,9 @@ void cpuTask(void *pvParameters) {
       if (i == X1_DISPLAY_LINES) {
         frameReady = true;
       }
-      if (x1IrqPending() && (cpu.IFF & IFF_1)) {
+      if (x1IrqPending() && cpu.iff1) {
         x1IrqAck();
-        IntZ80(&cpu, x1IrqVector());
+        z80core_int(&cpu, x1IrqVector());
       }
     }
     x1FrameTick();
@@ -1561,9 +1556,7 @@ void setup() {
   mem.framebuf = nullptr;
   x1Init(mem);
 
-  memset(&cpu, 0, sizeof(Z80));
-  ResetZ80(&cpu);
-  cpu.IPeriod = CPU_CYCLES_PER_LINE;
+  z80core_init(&cpu);
 
   Serial.println("X1 Booting...");
 #ifndef USE_SERIAL_DEBUG

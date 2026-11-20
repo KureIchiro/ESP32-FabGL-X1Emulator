@@ -31,11 +31,11 @@ This is a separate sketch from the original X1 version (`X1` folder). The X1 ver
 ## 🤝 Credits & Acknowledgments
 
 - **Graphics/Audio Engine**: Uses [FabGL](https://github.com/fdivitto/FabGL) by Fabrizio Di Vittorio.
-- **Z80 CPU Core**: Modified based on the work by Marat Fayzullin.
+- **Z80 CPU Core**: z80core, written for this collection (MIT License, Copyright Kure Ichiro; `z80core.c` / `z80core.h`).
 - **FM sound (YM2151), video, FDC and the rest**: newly written for this project. The hardware behaviour was studied from the source code of **MAME** and **Common Source Project** (TAKEDA, toshiya) and from X1 technical documents.
 
 ### 📜 Core Licenses
-The Z80 core follows Marat Fayzullin's **fMSX License**; FabGL follows its own license.
+The Z80 core (z80core) is under the **MIT License**; FabGL follows its own license.
 
 ---
 
@@ -136,7 +136,7 @@ A PS/2 mouse on the mouse port of the board is connected to the emulated Z80 SIO
 
 ## Disclaimer
 
-IN NO EVENT SHALL FABRIZIO DI VITTORIO, MARAT FAYZULLIN, OR THE DEVELOPER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE. USE AT YOUR OWN RISK.
+IN NO EVENT SHALL FABRIZIO DI VITTORIO OR THE DEVELOPER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE. USE AT YOUR OWN RISK.
 
 ---
 
@@ -167,11 +167,11 @@ ESP32 と **FabGL** ライブラリを使った、高解像度（24kHz）モニ�
 ## 🤝 クレジットと謝辞
 
 - **グラフィック/オーディオエンジン**: Fabrizio Di Vittorio 氏による [FabGL](https://github.com/fdivitto/FabGL) を使用。
-- **Z80 CPU コア**: Marat Fayzullin 氏のコードをベースに改変。
+- **Z80 CPU コア**: このシリーズのために書いた z80core（MIT ライセンス、Copyright Kure Ichiro。`z80core.c`・`z80core.h`）。
 - **FM 音源（YM2151）、画面、FDC など**: 本プロジェクトで新規に作成。実機の動作は **MAME** と **Common Source Project**（TAKEDA, toshiya 氏）のソースコード、X1 の技術資料で調べました。
 
 ### 📜 各コアのライセンスについて
-Z80 コアは Marat Fayzullin 氏の **fMSX License**、FabGL はそのライセンスに従います。
+Z80 コア（z80core）は **MIT ライセンス**、FabGL はそのライセンスに従います。
 
 ---
 
@@ -272,4 +272,4 @@ MSX・マーク III・PC-8801 版と同じ変換器・同じ通信仕様です�
 
 ## 免責事項
 
-本ソフトウェアの使用によって生じたいかなる損害についても、FABRIZIO DI VITTORIO 氏、MARAT FAYZULLIN 氏、および開発者は一切の責任を負いません。自己責任でご利用ください。
+本ソフトウェアの使用によって生じたいかなる損害についても、FABRIZIO DI VITTORIO 氏および開発者は一切の責任を負いません。自己責任でご利用ください。

@@ -1,6 +1,6 @@
 # Sharp X1turbo Emulator for ESP32
 
-[ [English](#english) | [日本語](#日本語) ]
+[ [English](#english) | [日本語](#日本語) | [Project README](../README.md) | [X1](../X1/) | [X1turbo](#english) ]
 
 ---
 
@@ -9,7 +9,7 @@
 
 An emulator for the Sharp X1turbo with a high-resolution (24 kHz) monitor, using ESP32 and the **FabGL** library (Work in Progress). It supports VGA output, PS/2 keyboard and mouse, D88 / raw disk images, the FM sound board (YM2151) and a serial-connected external joystick.
 
-This is a separate sketch from the original X1 version (`X1` folder). The X1 version is the 15 kHz (640x200) machine for original X1 software; this version is fixed to the 24 kHz (640x400) display.
+This is a separate sketch from the [original X1 version](../X1/). The [X1 version](../X1/X1.ino) is the 15 kHz (640x200) machine for original X1 software; this [X1turbo version](#english) is fixed to the 24 kHz (640x400) display.
 
 ## 📝 Overview
 
@@ -145,7 +145,7 @@ IN NO EVENT SHALL FABRIZIO DI VITTORIO OR THE DEVELOPER BE LIABLE FOR ANY DIRECT
 
 ESP32 と **FabGL** ライブラリを使った、高解像度（24kHz）モニタをつないだ シャープ X1turbo のエミュレータです（開発中）。VGA 出力、PS/2 キーボード・マウス、D88 / ベタのディスクイメージ、FM 音源ボード（YM2151）、シリアル接続の外部ジョイスティックに対応しています。
 
-無印 X1 版（`X1` フォルダ）とは別のスケッチです。X1 版は無印用のソフトのための 15kHz（640×200）の機種、この版は 24kHz（640×400）の画面に固定した機種です。
+[無印 X1 版](../X1/)とは別のスケッチです。[X1 版](../X1/X1.ino)は無印用のソフトのための 15kHz（640×200）の機種、この [X1turbo 版](#日本語)は 24kHz（640×400）の画面に固定した機種です。
 
 ## 📝 概要
 

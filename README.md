@@ -1,6 +1,6 @@
 # Sharp X1 (CZ-800C) / X1turbo Emulator for ESP32
 
-[ [English](#english) | [日本語](#日本語) ]
+[ [English](#english) | [日本語](#日本語) | [X1](./X1/) | [X1turbo](./X1turbo/) ]
 
 ---
 
@@ -9,7 +9,7 @@
 
 An emulator for the original Sharp X1 (CZ-800C, not turbo) using ESP32 and the **FabGL** library (Work in Progress). It supports VGA output, PS/2 keyboard and mouse, D88 disk images, the FM sound board (YM2151) and a serial-connected external joystick.
 
-An X1turbo version is a separate sketch in the `X1turbo` folder (see [X1turbo Version](#x1turbo-en)). This X1 version stays as the 15 kHz (640x200) machine for original X1 software.
+An [X1turbo version](./X1turbo/) is a separate sketch in the `X1turbo` folder (see [X1turbo Version](#x1turbo-en)). This [X1 version](./X1/) stays as the 15 kHz (640x200) machine for original X1 software.
 
 ## 📝 Overview
 
@@ -132,7 +132,7 @@ A PS/2 mouse on the mouse port of the board is connected to the emulated mouse b
 <a id="x1turbo-en"></a>
 ## ⚡ X1turbo Version (`X1turbo` folder)
 
-A separate sketch (`X1turbo/X1turbo.ino`) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](../X1turbo/README.md).
+A separate sketch ([`X1turbo/X1turbo.ino`](./X1turbo/X1turbo.ino)) emulates an X1turbo with a high-resolution (24 kHz) monitor: 640x400 / 16 colours, 400-line screens, kanji (JIS level 1 / 2) and the other turbo features. See [`X1turbo/README.md`](./X1turbo/README.md).
 
 ---
 
@@ -147,7 +147,7 @@ IN NO EVENT SHALL FABRIZIO DI VITTORIO OR THE DEVELOPER BE LIABLE FOR ANY DIRECT
 
 ESP32 と **FabGL** ライブラリを使った シャープ X1 無印（CZ-800C。turbo ではない）のエミュレータです（開発中）。VGA 出力、PS/2 キーボード・マウス、D88 ディスクイメージ、FM 音源ボード（YM2151）、シリアル接続の外部ジョイスティックに対応しています。
 
-X1turbo 版は `X1turbo` フォルダの別のスケッチです（[X1turbo 版](#x1turbo-ja) を参照）。この X1 版は、無印用のソフトのための 15kHz（640×200）の機種としてそのまま残します。
+[X1turbo 版](./X1turbo/)は `X1turbo` フォルダの別のスケッチです（[X1turbo 版](#x1turbo-ja) を参照）。この [X1 版](./X1/)は、無印用のソフトのための 15kHz（640×200）の機種としてそのまま残します。
 
 ## 📝 概要
 
@@ -270,7 +270,7 @@ MSX・マーク III・PC-8801 版と同じ変換器・同じ通信仕様です�
 <a id="x1turbo-ja"></a>
 ## ⚡ X1turbo 版（`X1turbo` フォルダ）
 
-高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（`X1turbo/X1turbo.ino`）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](../X1turbo/README.md) を参照してください。
+高解像度（24kHz）モニタをつないだ X1turbo として動く、別のスケッチ（[`X1turbo/X1turbo.ino`](./X1turbo/X1turbo.ino)）です。640×400・16 色、400 ラインの画面、漢字（JIS 第 1・第 2 水準）などの turbo の機能を再現しています。[`X1turbo/README.md`](./X1turbo/README.md) を参照してください。
 
 ---
 

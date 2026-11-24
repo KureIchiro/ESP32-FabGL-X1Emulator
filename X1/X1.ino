@@ -1147,7 +1147,7 @@ static void x1BootMenu() {
 }
 static void showStatus(const char *msg) {
   canvas->selectFont(&fabgl::FONT_8x8);
-  canvas->setBrushColor(fabgl::Color::Blue);
+  canvas->setBrushColor(fabgl::Color::Black);
   canvas->fillRectangle(0, 190, 639, 199);
   canvas->setPenColor(fabgl::Color::BrightWhite);
   canvas->drawText(4, 191, msg);

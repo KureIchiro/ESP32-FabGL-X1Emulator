@@ -1179,14 +1179,14 @@ static void showStatus(const char *msg) {
   x1VideoUnmapRows();
   uint8_t **rows = DisplayController.rowTable();
   const fabgl::FontInfo &fnt = fabgl::FONT_8x16;
-  for (int r = 0; r < 20; r++) memset(rows[380 + r], 0x11, X1_ROW_BYTES);
+  for (int r = 0; r < 20; r++) memset(rows[380 + r], 0x00, X1_ROW_BYTES);
   for (int i = 0; msg[i] && i < 79; i++) {
     const uint8_t *g = fnt.data + (uint8_t)msg[i] * 16;
     for (int r = 0; r < 16; r++) {
       uint8_t *d = rows[382 + r] + 2 + i * 4;
       uint8_t bits = g[r];
       for (int k = 0; k < 4; k++) {
-        uint8_t hi = (bits & (0x80 >> (2 * k))) ? 7 : 1, lo = (bits & (0x40 >> (2 * k))) ? 7 : 1;
+        uint8_t hi = (bits & (0x80 >> (2 * k))) ? 7 : 0, lo = (bits & (0x40 >> (2 * k))) ? 7 : 0;
         d[k] = (uint8_t)((hi << 4) | lo);
       }
     }

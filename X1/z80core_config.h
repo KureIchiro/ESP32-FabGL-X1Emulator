@@ -27,7 +27,7 @@ int x1SpinHook(struct z80 *z, uint16_t b, uint16_t t, int cyc);
 #define Z80CORE_OUT(p, v) do { Z80CORE_SYNC_OUT(); OutZ80((p), (v)); Z80CORE_SYNC_IN(); } while (0)
 #define Z80CORE_RETI() x1Reti()
 #if X1_IDLE_SKIP
-#define Z80CORE_SPIN(b, t) do { if ((uint16_t)((b) - (t)) <= X1_SP_MAXLEN) cyc = x1SpinHook(z, (b), (t), cyc); } while (0)
+#define Z80CORE_SPIN(b, t) do { if ((uint16_t)((b) - (t)) <= X1_SP_MAXLEN) { Z80CORE_R_OUT(); cyc = x1SpinHook(z, (b), (t), cyc); Z80CORE_R_IN(); } } while (0)
 #define Z80CORE_ON_INT() (x1_sp_have = 0)
 #endif
 

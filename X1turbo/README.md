@@ -1,6 +1,6 @@
 # Sharp X1turbo Emulator for ESP32
 
-[ [English](#english) | [日本語](#日本語) | [Project README](../README.md) | [X1](../X1/) | [X1turbo](#english) ]
+[ [English](#english) | [日本語](#日本語) ]
 
 ---
 
@@ -9,7 +9,7 @@
 
 An emulator for the Sharp X1turbo with a high-resolution (24 kHz) monitor, using ESP32 and the **FabGL** library (Work in Progress). It supports VGA output, PS/2 keyboard and mouse, D88 / raw disk images, the FM sound board (YM2151) and a serial-connected external joystick.
 
-This is a separate sketch from the [original X1 version](../X1/). The [X1 version](../X1/X1.ino) is the 15 kHz (640x200) machine for original X1 software; this [X1turbo version](#english) is fixed to the 24 kHz (640x400) display.
+This is a separate sketch from the original X1 version (`X1` folder). The X1 version is the 15 kHz (640x200) machine for original X1 software; this version is fixed to the 24 kHz (640x400) display.
 
 ## 📝 Overview
 
@@ -19,7 +19,7 @@ This is a separate sketch from the [original X1 version](../X1/). The [X1 versio
 - **Turbo features** (behaviour taken from Common Source Project and MAME): screen mode register 1FD0h (high-speed PCG, two graphic pages for display / CPU access, 400-line graphics, ANK 8x16 font), black clip / text key 1FE0h, kanji VRAM (3800h) and kanji display (JIS level 1 / 2, 16-line user-defined characters), kanji ROM read ports (0E80h–0E82h), Z80 DMA (1F80h, used with the FDC), bank memory 0B00h (32 KB x 16), Z80 CTC 1FA0h, Z80 SIO 1F90h, turbo keyboard (changes of CTRL / SHIFT / KANA / CAPS / GRAPH are also sent), DIP switch 1FF0h (fixed: high-resolution monitor, 5-inch 2D drive).
 - **Option boards**: FM sound board CZ-8BS1 (YM2151 4 MHz at 0700h, its own CTC at 0704h; CSM speech supported), mouse board CZ-8BM2 (Z80 SIO at 1F98h, PS/2 mouse; not yet tested with software).
 - **Not emulated**: X1turboZ features (4096 colours etc.), VRAM wait states, kanji underline, 2HD disks, cassette tape, RS-232C, printer, YM2151 stereo.
-- **Audio**: 16384 Hz (FabGL default). PSG and FM are mixed into the 8-bit DAC with the same balance as Common Source Project (PSG channel = 2/3 of an FM channel).
+- **Audio**: 24000 Hz (`SOUND_RATE` near the top of `X1turbo.ino`; 16384 = the FabGL default used before). PSG and FM are mixed into the 8-bit DAC with the same balance as Common Source Project (PSG channel = 2/3 of an FM channel).
 
 > ⚠️ **Notice Regarding Development & Licenses**
 >
@@ -127,7 +127,7 @@ A PS/2 mouse on the mouse port of the board is connected to the emulated Z80 SIO
 
 ## 🔧 Sound Tuning (for builders)
 
-- `ym2151.h` `OPM_FB_CLIP_*`: limits the YM2151 operator-1 feedback to what can be reproduced at 16384 Hz (same as the PC-8801 emulator).
+- `ym2151.h` `OPM_FB_CLIP_*`: limits the YM2151 operator-1 feedback to what can be reproduced at the output rate (same as the PC-8801 emulator; only below 30000 Hz).
 - `X1turbo.ino` `OPM_TREBLE_FIX`: treble correction of the FM output (0 = off).
 - YM2151 CSM (each timer A overflow re-keys all channels, as in fmgen; used for speech) is supported.
 - `x1.h` `X1_OPM_BOARD`: 0 = no FM sound board.
@@ -145,7 +145,7 @@ IN NO EVENT SHALL FABRIZIO DI VITTORIO OR THE DEVELOPER BE LIABLE FOR ANY DIRECT
 
 ESP32 と **FabGL** ライブラリを使った、高解像度（24kHz）モニタをつないだ シャープ X1turbo のエミュレータです（開発中）。VGA 出力、PS/2 キーボード・マウス、D88 / ベタのディスクイメージ、FM 音源ボード（YM2151）、シリアル接続の外部ジョイスティックに対応しています。
 
-[無印 X1 版](../X1/)とは別のスケッチです。[X1 版](../X1/X1.ino)は無印用のソフトのための 15kHz（640×200）の機種、この [X1turbo 版](#日本語)は 24kHz（640×400）の画面に固定した機種です。
+無印 X1 版（`X1` フォルダ）とは別のスケッチです。X1 版は無印用のソフトのための 15kHz（640×200）の機種、この版は 24kHz（640×400）の画面に固定した機種です。
 
 ## 📝 概要
 
@@ -155,7 +155,7 @@ ESP32 と **FabGL** ライブラリを使った、高解像度（24kHz）モニ�
 - **turbo の機能**（Common Source Project と MAME の動作に合わせています）: 画面モード 1FD0h（高速 PCG、表示用 / CPU 用のグラフィック 2 ページ、400 ラインのグラフィック、ANK 8×16 フォント）、ブラッククリップ・テキストキー 1FE0h、漢字 VRAM（3800h）と漢字表示（JIS 第 1・第 2 水準、16 ラインの外字）、漢字 ROM の読み出し（0E80h〜0E82h）、Z80 DMA（1F80h。FDC と組み合わせて使う）、バンクメモリ 0B00h（32KB × 16）、Z80 CTC 1FA0h、Z80 SIO 1F90h、turbo のキーボード（CTRL・SHIFT・カナ・CAPS・GRAPH が変わったときも送る）、DIP スイッチ 1FF0h（高解像度モニタ・5 インチ 2D ドライブに固定）。
 - **拡張ボード**: FM 音源ボード CZ-8BS1（YM2151 4MHz、0700h。専用の CTC は 0704h。CSM の音声にも対応）、マウスボード CZ-8BM2（Z80 SIO 1F98h、PS/2 マウス。ソフトでの確認はまだ）。
 - **再現していないもの**: X1turboZ の機能（4096 色など）、VRAM アクセスのウエイト、漢字の下線、2HD のディスク、カセットテープ、RS-232C、プリンタ、YM2151 のステレオ。
-- **サウンド**: 16384Hz（FabGL の標準）。PSG と FM を混ぜて 8bit DAC に出力します。音量の比は Common Source Project と同じです（PSG 1ch = FM 1ch の 2/3）。
+- **サウンド**: 24000Hz（`X1turbo.ino` の先頭近くの `SOUND_RATE`。16384 にすると以前の FabGL の標準と同じ）。PSG と FM を混ぜて 8bit DAC に出力します。音量の比は Common Source Project と同じです（PSG 1ch = FM 1ch の 2/3）。
 
 > ⚠️ **開発・ライセンスに関するご注意**
 >
@@ -263,7 +263,7 @@ MSX・マーク III・PC-8801 版と同じ変換器・同じ通信仕様です�
 
 ## 🔧 音の調整（ビルドする人向け）
 
-- `ym2151.h` の `OPM_FB_CLIP_*`: YM2151 のオペレータ 1 のフィードバックを、16384Hz で再現できる強さまでに制限する（PC-8801 版と同じ）。
+- `ym2151.h` の `OPM_FB_CLIP_*`: YM2151 のオペレータ 1 のフィードバックを、出力の周波数で再現できる強さまでに制限する（PC-8801 版と同じ。30000Hz 未満のときだけ）。
 - `X1turbo.ino` の `OPM_TREBLE_FIX`: FM の高音の補正（0 で補正なし）。
 - YM2151 の CSM（タイマー A があふれるたびに全チャンネルをキーオンし直す。fmgen と同じ。音声合成に使われる）に対応しています。
 - `x1.h` の `X1_OPM_BOARD`: 0 で FM 音源ボードなし。

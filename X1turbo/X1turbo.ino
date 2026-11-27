@@ -84,6 +84,8 @@
 // #define SD_MOSI 2
 // #define SD_CS   13
 
+#define SOUND_RATE 24000
+
 struct D88Image { uint32_t ofs, size; char name[18]; };
 static const int D88_MAX_IMAGES = 16;
 
@@ -115,7 +117,7 @@ public:
 
 X1VGA16 DisplayController;
 fabgl::Canvas* canvas;
-fabgl::SoundGenerator soundGenerator;
+fabgl::SoundGenerator soundGenerator(SOUND_RATE);
 fabgl::PS2Controller PS2Controller;
 
 volatile bool frameReady = false;
@@ -320,6 +322,7 @@ private:
   uint32_t toneOut = 0, noiseCounter = 0, lfsr = 1, noiseOut = 0;
   int16_t volTable[16] = { 0, 1, 1, 2, 3, 4, 6, 8, 11, 16, 22, 32, 45, 64, 90, 127 };
   int32_t dcPrev = 0, dcOut = 0;
+  static const int DC_SHIFT = SOUND_RATE >= 32768 ? 9 : 8;
   int16_t sampleBuffer[AY_BUFFER_SIZE];
   volatile int head = 0, tail = 0;
   int lastSample = 0;
@@ -334,7 +337,7 @@ public:
         int ch = reg >> 1;
         uint32_t p = regs[ch * 2] | ((regs[ch * 2 + 1] & 0x0F) << 8);
         tonePeriod[ch] = p ? p : 1;
-        sccInc[ch] = p > 10 ? (uint32_t)(((uint64_t)psgClock << 18) / p) : 0;
+        sccInc[ch] = p > 10 ? (uint32_t)(((uint64_t)psgClock << 32) / ((uint64_t)SOUND_RATE * p)) : 0;
         break;
       }
       case 6: noisePeriod = (regs[6] & 0x1F) ? (regs[6] & 0x1F) : 1; break;
@@ -416,7 +419,7 @@ public:
         x += fmLp >> 7;
 #endif
         x <<= 8;
-        dcOut = x - dcPrev + dcOut - (dcOut >> 8);
+        dcOut = x - dcPrev + dcOut - (dcOut >> DC_SHIFT);
         dcPrev = x;
         int32_t s = dcOut >> 8;
         if (s > 96) s = 96 + (s - 96) / 3; else if (s < -96) s = -96 + (s + 96) / 3;

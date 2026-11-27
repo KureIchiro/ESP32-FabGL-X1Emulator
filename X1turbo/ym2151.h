@@ -20,7 +20,7 @@
 #define OPM_FB_CLIP_HI_HZ   1800
 #endif
 #ifndef OPM_FB_CLIP_RATE
-#define OPM_FB_CLIP_RATE    30000
+#define OPM_FB_CLIP_RATE    20000
 #endif
 
 struct Ym2151;
